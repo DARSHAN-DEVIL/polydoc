@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Static File Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Static File Serving Test</h1>
+    
+    <div class="test-section">
+        <h2>CSS Test</h2>
+        <p>If you can see styled boxes with shadows, CSS is working.</p>
+        <button onclick="testCSSLoad()">Test CSS Loading</button>
+        <div id="css-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>JavaScript Test</h2>
+        <p>If you can see this message change, JavaScript is working.</p>
+        <button onclick="testJS()">Test JavaScript</button>
+        <div id="js-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>External CSS Test</h2>
+        <p>Testing if external CSS files can be loaded:</p>
+        <button onclick="testExternalCSS()">Load External CSS</button>
+        <div id="external-css-result"></div>
+    </div>
+
+    <script>
+        function testJS() {
+            document.getElementById('js-result').innerHTML = '<p style="color: green;">✓ JavaScript is working!</p>';
+        }
+
+        function testCSSLoad() {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = '/static/styles.css';
+            
+            link.onload = function() {
+                document.getElementById('css-result').innerHTML = '<p style="color: green;">✓ CSS loaded successfully!</p>';
+            };
+            
+            link.onerror = function() {
+                document.getElementById('css-result').innerHTML = '<p style="color: red;">✗ CSS failed to load!</p>';
+            };
+            
+            document.head.appendChild(link);
+        }
+
+        function testExternalCSS() {
+            fetch('/static/styles.css')
+                .then(response => {
+                    if (response.ok) {
+                        return response.text();
+                    }
+                    throw new Error('CSS file not found');
+                })
+                .then(cssText => {
+                    document.getElementById('external-css-result').innerHTML = `
+                        <p style="color: green;">✓ CSS file loaded successfully!</p>
+                        <p>File size: ${cssText.length} characters</p>
+                        <details>
+                            <summary>First 200 characters:</summary>
+                            <pre style="font-size: 12px; overflow-x: auto;">${cssText.substring(0, 200)}...</pre>
+                        </details>
+                    `;
+                })
+                .catch(error => {
+                    document.getElementById('external-css-result').innerHTML = `<p style="color: red;">✗ Error: ${error.message}</p>`;
+                });
+        }
+    </script>
+</body>
+</html>
