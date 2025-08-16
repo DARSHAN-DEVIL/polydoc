@@ -595,9 +595,9 @@ async def favicon():
 # Web interface endpoint
 @app.get("/", response_class=HTMLResponse)
 async def web_interface(request: Request):
-    """Serve the web interface"""
+    """Serve the React web interface"""
     import time
-    return templates.TemplateResponse("index.html", {
+    return templates.TemplateResponse("react.html", {
         "request": request,
         "timestamp": int(time.time())  # Cache busting timestamp
     })
