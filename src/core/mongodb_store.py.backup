@@ -17,6 +17,7 @@ from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import ASCENDING, DESCENDING, TEXT
 from bson import ObjectId
+# import gridfs  # Removed for now - not compatible with async Motor
 
 from src.models.ai_models import AIModelManager
 
@@ -48,7 +49,7 @@ class MongoDBStore:
         self.user_id = user_id
         self.logger = logging.getLogger(__name__)
         
-        # Use only local MongoDB
+        # Use only local MongoDB - Atlas configuration removed
         self.mongo_base_url = mongo_url or os.getenv('MONGO_URL', 'mongodb://localhost:27017')
         
         # Ensure we're only using local MongoDB
@@ -64,12 +65,13 @@ class MongoDBStore:
         # MongoDB client and database
         self.client: Optional[AsyncIOMotorClient] = None
         self.db = None
+        self.fs = None  # GridFS for file storage
         
         # Collection names
         self.documents_collection = "documents"
         self.chunks_collection = "document_chunks"
         self.chat_sessions_collection = "chat_sessions"
-        self.users_collection = "users"
+        self.users_collection = "users"  # For user management
         
         # Vector search configuration
         self.vector_index_name = "vector_search_index"
@@ -92,6 +94,9 @@ class MongoDBStore:
                 db_name = 'polydoc_ai_default'
             
             self.db = self.client[db_name]
+            
+            # GridFS initialization removed - not compatible with async Motor
+            # self.fs = gridfs.GridFS(self.client[db_name])
             
             # Create user record if it doesn't exist
             if self.user_id:
@@ -198,39 +203,6 @@ class MongoDBStore:
         except Exception as e:
             self.logger.error(f"Error ensuring user record: {e}")
     
-    def _map_language_for_mongodb(self, language: str) -> str:
-        """Map language codes to MongoDB-supported languages for text indexing"""
-        # MongoDB text search supported languages
-        mongodb_supported = {
-            'da': 'danish',
-            'nl': 'dutch', 
-            'en': 'english',
-            'fi': 'finnish',
-            'fr': 'french',
-            'de': 'german',
-            'hu': 'hungarian',
-            'it': 'italian',
-            'nb': 'norwegian',
-            'pt': 'portuguese',
-            'ro': 'romanian',
-            'ru': 'russian',
-            'es': 'spanish',
-            'sv': 'swedish',
-            'tr': 'turkish'
-        }
-        
-        # Check if language is directly supported
-        if language in mongodb_supported:
-            return mongodb_supported[language]
-        
-        # Map Indian languages to 'none' to avoid language-specific processing
-        indian_languages = {'hi', 'kn', 'mr', 'te', 'ta', 'bn', 'gu', 'pa', 'ml', 'or', 'as'}
-        if language in indian_languages:
-            return 'none'  # Use 'none' for unsupported languages
-        
-        # Default to 'none' for any other unsupported language
-        return 'none'
-    
     async def add_document(
         self, 
         document_id: str,
@@ -251,14 +223,14 @@ class MongoDBStore:
             document_record = {
                 "_id": ObjectId() if not ObjectId.is_valid(document_id) else ObjectId(document_id),
                 "user_id": user_id,
-                "user_email": user_email,
+                "user_email": user_email,  # Store user email for better identification
                 "filename": filename,
-                "file_size": 0,
+                "file_size": 0,  # Calculate from elements
                 "content_type": self._get_content_type(filename),
                 "upload_date": datetime.now(timezone.utc),
                 "processed_date": datetime.now(timezone.utc),
                 "status": "processing",
-                "language": "en",
+                "language": "en",  # Detect from elements
                 "page_count": 0,
                 "metadata": {},
                 "created_at": datetime.now(timezone.utc),
@@ -330,9 +302,9 @@ class MongoDBStore:
                     "page_number": chunk.page_number,
                     "element_type": chunk.element_type,
                     "bbox": list(chunk.bbox),
-                    "language": chunk.language,
-                    "mongodb_language": mongodb_language,
-                    "embedding": embeddings_list[i],
+                    "language": chunk.language,  # Keep original for our use
+                    "mongodb_language": mongodb_language,  # Mapped version for MongoDB indexing
+                    "embedding": embeddings_list[i],  # Store as list
                     "metadata": chunk.metadata,
                     "created_at": datetime.now(timezone.utc)
                 }
@@ -354,20 +326,22 @@ class MongoDBStore:
                     successful_inserts = 0
                     for chunk_doc in chunk_documents:
                         try:
+                            # Remove language field that might cause issues
+                            safe_chunk_doc = chunk_doc.copy()
                             # Keep only essential fields to avoid language indexing issues
                             essential_fields = {
-                                "_id": chunk_doc["_id"],
-                                "chunk_id": chunk_doc["chunk_id"],
-                                "document_id": chunk_doc["document_id"],
-                                "user_id": chunk_doc["user_id"],
-                                "text": chunk_doc["text"],
-                                "page_number": chunk_doc["page_number"],
-                                "element_type": chunk_doc["element_type"],
-                                "bbox": chunk_doc["bbox"],
-                                "language": chunk_doc["language"],
-                                "embedding": chunk_doc["embedding"],
-                                "metadata": chunk_doc["metadata"],
-                                "created_at": chunk_doc["created_at"]
+                                "_id": safe_chunk_doc["_id"],
+                                "chunk_id": safe_chunk_doc["chunk_id"],
+                                "document_id": safe_chunk_doc["document_id"],
+                                "user_id": safe_chunk_doc["user_id"],
+                                "text": safe_chunk_doc["text"],
+                                "page_number": safe_chunk_doc["page_number"],
+                                "element_type": safe_chunk_doc["element_type"],
+                                "bbox": safe_chunk_doc["bbox"],
+                                "language": safe_chunk_doc["language"],
+                                "embedding": safe_chunk_doc["embedding"],
+                                "metadata": safe_chunk_doc["metadata"],
+                                "created_at": safe_chunk_doc["created_at"]
                             }
                             await self.db[self.chunks_collection].insert_one(essential_fields)
                             successful_inserts += 1
@@ -406,6 +380,41 @@ class MongoDBStore:
             '.bmp': 'image/bmp'
         }
         return content_types.get(ext, 'application/octet-stream')
+    
+    def _map_language_for_mongodb(self, language: str) -> str:
+        """Map language codes to MongoDB-supported languages for text indexing"""
+        # MongoDB text search supported languages
+        # Full list: https://docs.mongodb.com/manual/reference/text-search-languages/
+        
+        mongodb_supported = {
+            'da': 'danish',
+            'nl': 'dutch', 
+            'en': 'english',
+            'fi': 'finnish',
+            'fr': 'french',
+            'de': 'german',
+            'hu': 'hungarian',
+            'it': 'italian',
+            'nb': 'norwegian',
+            'pt': 'portuguese',
+            'ro': 'romanian',
+            'ru': 'russian',
+            'es': 'spanish',
+            'sv': 'swedish',
+            'tr': 'turkish'
+        }
+        
+        # Check if language is directly supported
+        if language in mongodb_supported:
+            return mongodb_supported[language]
+        
+        # Map Indian languages to 'none' to avoid language-specific processing
+        indian_languages = {'hi', 'kn', 'mr', 'te', 'ta', 'bn', 'gu', 'pa', 'ml', 'or', 'as'}
+        if language in indian_languages:
+            return 'none'  # Use 'none' for unsupported languages
+        
+        # Default to 'none' for any other unsupported language
+        return 'none'
     
     def _create_chunks(
         self, 
@@ -491,7 +500,7 @@ class MongoDBStore:
                                     }
                                 }
                             },
-                            "in": "$$dot_product"
+                            "in": "$$dot_product"  # Simplified: assuming normalized vectors
                         }
                     }
                 }
@@ -619,7 +628,7 @@ class MongoDBStore:
                     "page_count": doc["page_count"],
                     "language": doc["language"],
                     "chunk_count": chunk_count,
-                    "user_email": doc.get("user_email"),
+                    "user_email": doc.get("user_email"),  # Include user email in response
                     "content_type": doc.get("content_type")
                 })
             
