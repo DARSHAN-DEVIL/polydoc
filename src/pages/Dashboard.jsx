@@ -17,6 +17,8 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { UserProfile } from '@/components/ui/user-profile';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
+import { useLenis } from '@/hooks/useLenis';
+import FloatingParticles from '@/components/FloatingParticles';
 
 // File Display Component
 function FileDisplay({ fileName, onClear }) {
@@ -305,6 +307,13 @@ export default function Dashboard() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const messagesEndRef = useRef(null);
+  
+  // Initialize Lenis smooth scrolling
+  useLenis({
+    duration: 1.2,
+    easing: (t) => 1 - Math.pow(1 - t, 3),
+    smooth: true
+  });
 
   // Check backend initialization status
   const checkSystemStatus = async () => {
@@ -748,7 +757,24 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
   }, [systemReady, user?.uid]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+      {/* Floating Background Particles */}
+      <FloatingParticles count={8} />
+      
+      {/* Background Gradient Orb */}
+      <motion.div
+        animate={{
+          scale: [1, 1.1, 1],
+          rotate: [0, 90, 180, 270, 360],
+          opacity: [0.05, 0.15, 0.05]
+        }}
+        transition={{
+          duration: 30,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+        className="absolute top-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full blur-3xl pointer-events-none"
+      />
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between">
@@ -792,10 +818,20 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
       )}
 
       {/* Main Content */}
-      <main className="container mx-auto max-w-6xl py-6 px-4">
-        <div className="grid gap-6 lg:grid-cols-3">
+      <main className="container mx-auto max-w-6xl py-6 px-4 relative">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="grid gap-6 lg:grid-cols-3"
+        >
           {/* Chat Interface */}
-          <div className="lg:col-span-2">
+          <motion.div 
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, delay: 0.2 }}
+            className="lg:col-span-2"
+          >
           <div className="bg-background/80 backdrop-blur-sm border-0 rounded-3xl overflow-hidden shadow-xl ring-1 ring-black/5 dark:ring-white/10">
               {/* Chat Header */}
               <div className="p-4 border-b border-black/5 dark:border-white/5 flex justify-between items-center bg-gradient-to-r from-background/50 to-muted/20">
@@ -907,7 +943,12 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-6">
+          <motion.div 
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
+            className="space-y-6"
+          >
             {/* Current Document */}
             {currentDocument && (
               <motion.div
@@ -1005,8 +1046,8 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
                 )}
               </div>
             </motion.div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       </main>
     </div>
   );

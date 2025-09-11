@@ -7,6 +7,9 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import AnimatedLogo3D from '@/components/AnimatedLogo3D';
+import FloatingParticles from '@/components/FloatingParticles';
+import { useLenis } from '@/hooks/useLenis';
 import { 
   FileText, 
   Menu, 
@@ -167,6 +170,13 @@ export default function LandingPage() {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  
+  // Initialize Lenis smooth scrolling
+  useLenis({
+    duration: 1.5,
+    easing: (t) => 1 - Math.pow(1 - t, 4), // Custom smooth easing
+    smooth: true
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -198,11 +208,15 @@ export default function LandingPage() {
   };
 
   const fadeIn = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 30, scale: 0.95 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6 },
+      scale: 1,
+      transition: { 
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      },
     },
   };
 
@@ -211,22 +225,83 @@ export default function LandingPage() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1,
+        staggerChildren: 0.15,
+        delayChildren: 0.1
       },
     },
   };
 
   const itemFadeIn = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 30, scale: 0.9 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5 },
+      scale: 1,
+      transition: { 
+        duration: 0.7,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      },
+    },
+  };
+
+  const slideInLeft = {
+    hidden: { opacity: 0, x: -60, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: { 
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      },
+    },
+  };
+
+  const slideInRight = {
+    hidden: { opacity: 0, x: 60, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      scale: 1,
+      transition: { 
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94]
+      },
     },
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+      {/* Floating Background Particles */}
+      <FloatingParticles count={15} />
+      
+      {/* Background Gradient Orbs */}
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          rotate: [0, 180, 360],
+          opacity: [0.1, 0.3, 0.1]
+        }}
+        transition={{
+          duration: 20,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+        className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full blur-3xl pointer-events-none"
+      />
+      <motion.div
+        animate={{
+          scale: [1.2, 1, 1.2],
+          rotate: [360, 180, 0],
+          opacity: [0.1, 0.2, 0.1]
+        }}
+        transition={{
+          duration: 25,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+        className="absolute bottom-20 right-10 w-80 h-80 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none"
+      />
       {/* Header */}
       <motion.header
         initial={{ y: -100 }}
@@ -386,8 +461,8 @@ export default function LandingPage() {
               <motion.div
                 initial="hidden"
                 whileInView="visible"
-                viewport={{ once: true }}
-                variants={fadeIn}
+                viewport={{ once: true, amount: 0.3 }}
+                variants={slideInLeft}
                 className="flex flex-col justify-center space-y-4 py-10"
               >
                 <div className="space-y-3">
@@ -443,32 +518,15 @@ export default function LandingPage() {
                 </motion.div>
               </motion.div>
               <motion.div
-                initial={{ opacity: 0, x: 100 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8 }}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, amount: 0.3 }}
+                variants={slideInRight}
                 className="flex items-center justify-center"
               >
-                <div className="relative h-[350px] w-full md:h-[450px] lg:h-[500px] xl:h-[550px] overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 flex items-center justify-center border border-indigo-300/30">
-                  <video 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline
-                    className="w-full h-full object-contain"
-                    onError={(e) => {
-                      // Fallback to icon if video fails to load
-                      e.target.style.display = 'none';
-                      e.target.nextElementSibling.style.display = 'flex';
-                    }}
-                  >
-                    <source src="/logo.mp4" type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
-                  <div className="hidden w-full h-full text-white text-center items-center justify-center flex-col">
-                    <FileText className="h-24 w-24 mx-auto mb-4 opacity-80" />
-                    <p className="text-lg font-medium">Document Processing</p>
-                    <p className="text-sm opacity-80">Multi-lingual • Layout Preserved</p>
-                  </div>
+                {/* 3D Animated Logo */}
+                <div className="relative h-[350px] w-full md:h-[450px] lg:h-[500px] xl:h-[550px] overflow-visible">
+                  <AnimatedLogo3D />
                 </div>
               </motion.div>
             </div>
