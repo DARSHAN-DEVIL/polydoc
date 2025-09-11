@@ -44,7 +44,11 @@ git config --global user.name "Your Name"
 git config --global user.email "your.email@example.com"
 
 # Run one-time setup script
+# Option A: Batch file (if it works)
 init-setup.bat
+
+# Option B: PowerShell (if batch file exits early)
+PowerShell -ExecutionPolicy Bypass -File init-setup.ps1
 ```
 
 The setup script will:
@@ -143,6 +147,23 @@ python main.py
 # Reinstall dependencies
 pip install --upgrade -r requirements.txt
 npm install
+```
+
+### init-setup.bat exits early
+**Root Cause**: Batch files sometimes don't work properly on new Windows systems
+
+**Solutions:**
+```powershell
+# Option A: Use PowerShell version instead
+PowerShell -ExecutionPolicy Bypass -File init-setup.ps1
+
+# Option B: Run in Command Prompt (not PowerShell)
+cmd /c init-setup.bat
+
+# Option C: Manual setup if scripts don't work
+pip install -r requirements.txt
+npm install
+mkdir uploads static templates
 ```
 
 ### Git push fails or exits early
