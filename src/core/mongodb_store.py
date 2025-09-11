@@ -134,10 +134,20 @@ class MongoDBStore:
                 ("user_id", ASCENDING)
             ])
             
-            # Text search index for chunks
-            await self.db[self.chunks_collection].create_index([
-                ("text", TEXT)
-            ])
+            # Text search index for chunks (language-agnostic to support all languages)
+            try:
+                await self.db[self.chunks_collection].create_index([
+                    ("text", TEXT)
+                ], default_language='none')  # Use 'none' to disable language-specific stemming
+            except Exception as text_index_error:
+                self.logger.warning(f"Could not create language-specific text index: {text_index_error}")
+                # Fallback: create basic text index without language support
+                try:
+                    await self.db[self.chunks_collection].create_index([
+                        ("text", TEXT)
+                    ])
+                except Exception as fallback_error:
+                    self.logger.warning(f"Could not create fallback text index: {fallback_error}")
             
             # Chat sessions indexes
             await self.db[self.chat_sessions_collection].create_index([
@@ -280,20 +290,24 @@ class MongoDBStore:
             # Prepare chunk documents for MongoDB
             chunk_documents = []
             for i, chunk in enumerate(document_chunks):
-                chunk_doc = {
-                    "_id": ObjectId(),
-                    "chunk_id": chunk.chunk_id,
-                    "document_id": document_id,
-                    "user_id": user_id,
-                    "text": chunk.text,
-                    "page_number": chunk.page_number,
-                    "element_type": chunk.element_type,
-                    "bbox": list(chunk.bbox),
-                    "language": chunk.language,
-                    "embedding": embeddings_list[i],  # Store as list
-                    "metadata": chunk.metadata,
-                    "created_at": datetime.now(timezone.utc)
-                }
+                    # Map unsupported language codes to supported ones for MongoDB
+                    mongodb_language = self._map_language_for_mongodb(chunk.language)
+                    
+                    chunk_doc = {
+                        "_id": ObjectId(),
+                        "chunk_id": chunk.chunk_id,
+                        "document_id": document_id,
+                        "user_id": user_id,
+                        "text": chunk.text,
+                        "page_number": chunk.page_number,
+                        "element_type": chunk.element_type,
+                        "bbox": list(chunk.bbox),
+                        "language": chunk.language,  # Keep original for our use
+                        "mongodb_language": mongodb_language,  # Mapped version for MongoDB indexing
+                        "embedding": embeddings_list[i],  # Store as list
+                        "metadata": chunk.metadata,
+                        "created_at": datetime.now(timezone.utc)
+                    }
                 chunk_documents.append(chunk_doc)
                 chunks_added += 1
             
@@ -301,9 +315,42 @@ class MongoDBStore:
             document_record["status"] = "completed"
             await self.db[self.documents_collection].insert_one(document_record)
             
-            # Insert chunk documents in batch
+            # Insert chunk documents in batch with error handling
             if chunk_documents:
-                await self.db[self.chunks_collection].insert_many(chunk_documents)
+                try:
+                    await self.db[self.chunks_collection].insert_many(chunk_documents)
+                except Exception as batch_error:
+                    self.logger.warning(f"Batch insert failed: {batch_error}")
+                    # Fallback: insert documents one by one
+                    self.logger.info("Falling back to individual document insertion...")
+                    successful_inserts = 0
+                    for chunk_doc in chunk_documents:
+                        try:
+                            # Remove language field that might cause issues
+                            safe_chunk_doc = chunk_doc.copy()
+                            # Keep only essential fields to avoid language indexing issues
+                            essential_fields = {
+                                "_id": safe_chunk_doc["_id"],
+                                "chunk_id": safe_chunk_doc["chunk_id"],
+                                "document_id": safe_chunk_doc["document_id"],
+                                "user_id": safe_chunk_doc["user_id"],
+                                "text": safe_chunk_doc["text"],
+                                "page_number": safe_chunk_doc["page_number"],
+                                "element_type": safe_chunk_doc["element_type"],
+                                "bbox": safe_chunk_doc["bbox"],
+                                "language": safe_chunk_doc["language"],
+                                "embedding": safe_chunk_doc["embedding"],
+                                "metadata": safe_chunk_doc["metadata"],
+                                "created_at": safe_chunk_doc["created_at"]
+                            }
+                            await self.db[self.chunks_collection].insert_one(essential_fields)
+                            successful_inserts += 1
+                        except Exception as individual_error:
+                            self.logger.warning(f"Failed to insert chunk {chunk_doc['chunk_id']}: {individual_error}")
+                            continue
+                    
+                    chunks_added = successful_inserts
+                    self.logger.info(f"Successfully inserted {successful_inserts}/{len(chunk_documents)} chunks")
             
             self.logger.info(f"Added document {document_id} with {chunks_added} chunks to MongoDB")
             return chunks_added
@@ -333,6 +380,41 @@ class MongoDBStore:
             '.bmp': 'image/bmp'
         }
         return content_types.get(ext, 'application/octet-stream')
+    
+    def _map_language_for_mongodb(self, language: str) -> str:
+        """Map language codes to MongoDB-supported languages for text indexing"""
+        # MongoDB text search supported languages
+        # Full list: https://docs.mongodb.com/manual/reference/text-search-languages/
+        
+        mongodb_supported = {
+            'da': 'danish',
+            'nl': 'dutch', 
+            'en': 'english',
+            'fi': 'finnish',
+            'fr': 'french',
+            'de': 'german',
+            'hu': 'hungarian',
+            'it': 'italian',
+            'nb': 'norwegian',
+            'pt': 'portuguese',
+            'ro': 'romanian',
+            'ru': 'russian',
+            'es': 'spanish',
+            'sv': 'swedish',
+            'tr': 'turkish'
+        }
+        
+        # Check if language is directly supported
+        if language in mongodb_supported:
+            return mongodb_supported[language]
+        
+        # Map Indian languages to 'none' to avoid language-specific processing
+        indian_languages = {'hi', 'kn', 'mr', 'te', 'ta', 'bn', 'gu', 'pa', 'ml', 'or', 'as'}
+        if language in indian_languages:
+            return 'none'  # Use 'none' for unsupported languages
+        
+        # Default to 'none' for any other unsupported language
+        return 'none'
     
     def _create_chunks(
         self, 
