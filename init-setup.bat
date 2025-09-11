@@ -15,44 +15,65 @@ if not exist node_modules (
     echo ✅ Fresh repository detected
 ) else (
     echo ⚠️  Dependencies already installed. Continue anyway? 
-    pause
+    set /p continue="Press Enter to continue or Ctrl+C to exit..."
 )
 
 echo.
 echo [1/6] Checking system requirements...
 
 REM Check Python
+echo Checking Python installation...
 python --version >nul 2>&1
 if errorlevel 1 (
     echo ❌ Python not found! Please install Python 3.9+ from https://python.org
     echo    ✅ IMPORTANT: Check "Add Python to PATH" during installation
-    pause
+    echo.
+    echo Press any key to exit and install Python, then re-run this script...
+    pause >nul
     exit /b 1
 ) else (
-    python --version
+    for /f "tokens=*" %%i in ('python --version 2^>^&1') do echo    %%i
     echo ✅ Python found
 )
 
 REM Check Node.js
+echo Checking Node.js installation...
 node --version >nul 2>&1
 if errorlevel 1 (
     echo ❌ Node.js not found! Please install Node.js 18+ from https://nodejs.org
-    pause
+    echo.
+    echo Press any key to exit and install Node.js, then re-run this script...
+    pause >nul
     exit /b 1
 ) else (
-    node --version
+    for /f "tokens=*" %%i in ('node --version 2^>^&1') do echo    %%i
     echo ✅ Node.js found
 )
 
 REM Check npm
+echo Checking npm...
 npm --version >nul 2>&1
 if errorlevel 1 (
     echo ❌ npm not found! Please reinstall Node.js
-    pause
+    echo.
+    echo Press any key to exit and reinstall Node.js...
+    pause >nul
     exit /b 1
 ) else (
-    npm --version
+    for /f "tokens=*" %%i in ('npm --version 2^>^&1') do echo    %%i
     echo ✅ npm found
+)
+
+REM Check Git configuration
+echo.
+echo Checking Git configuration...
+git config --global user.name >nul 2>&1
+if errorlevel 1 (
+    echo ⚠️  Git user name not set
+    echo    Please run: git config --global user.name "Your Name"
+    echo    Please run: git config --global user.email "your.email@example.com"
+) else (
+    echo ✅ Git configured
 )
 
 echo.
@@ -62,24 +83,45 @@ echo.
 
 echo [3/6] Installing Python dependencies...
 echo    This may take 5-10 minutes depending on internet speed...
+echo    Please be patient - downloading AI libraries...
+echo.
 pip install -r requirements.txt
 if errorlevel 1 (
-    echo ❌ Python dependency installation failed
-    echo    Trying with --user flag...
+    echo.
+    echo ⚠️  Standard pip install failed. Trying with --user flag...
     pip install --user -r requirements.txt
+    if errorlevel 1 (
+        echo.
+        echo ❌ Python dependency installation failed completely
+        echo    Please check your internet connection and try again
+        echo    Or install manually: pip install -r requirements.txt
+        echo.
+        echo Press any key to continue anyway (some features may not work)...
+        pause >nul
+    ) else (
+        echo ✅ Python dependencies installed (user mode)
+    )
+) else (
+    echo ✅ Python dependencies installed successfully
 )
-echo ✅ Python dependencies installed
 
 echo.
 echo [4/6] Installing Node.js dependencies...
 echo    This may take 2-5 minutes...
+echo    Downloading frontend packages...
+echo.
 npm install
 if errorlevel 1 (
+    echo.
     echo ❌ Node.js dependency installation failed
-    pause
-    exit /b 1
+    echo    This might be due to network issues or npm cache problems
+    echo    Try running manually: npm install --legacy-peer-deps
+    echo.
+    echo Press any key to continue anyway (frontend may not work)...
+    pause >nul
+) else (
+    echo ✅ Node.js dependencies installed successfully
 )
-echo ✅ Node.js dependencies installed
 
 echo.
 echo [5/6] Creating required directories...
@@ -116,12 +158,19 @@ echo.
 echo ================================================================
 echo ✅ Initial setup complete!
 echo.
+echo 🎉 PolyDoc AI is ready for first run!
+echo.
 echo Next steps:
 echo 1. Run: start-all.bat
 echo 2. Wait 5-10 minutes for AI models to download (first time only)
 echo 3. Access: http://localhost:3003
+echo 4. Upload a Hindi/Kannada document to test!
 echo.
-echo For help, see: SETUP_GUIDE.md
+echo 📚 For detailed help, see: SETUP_GUIDE.md
+echo 🎆 For troubleshooting, see: GETTING_STARTED.md
 echo ================================================================
 echo.
-pause
+echo Press any key to finish setup...
+pause >nul
+echo.
+echo Setup completed! You can now close this window and run start-all.bat

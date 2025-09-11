@@ -60,6 +60,10 @@ git --version
 git clone <YOUR_GITHUB_REPO_URL>
 cd polydoc
 
+# IMPORTANT: Configure Git on new laptop
+git config --global user.name "Your Full Name"
+git config --global user.email "your.email@example.com"
+
 # Verify all files are present
 dir
 ```
@@ -179,6 +183,37 @@ pip install <module_name>
 - Ensure backend is fully loaded (check for "All systems ready!" message)
 - Check backend logs in the cmd window
 - Verify file size is under 10MB
+
+### Issue 6: Git push exits early or fails
+**Root Cause**: New laptop needs Git authentication setup
+
+**Solutions:**
+```bash
+# Step 1: Configure Git identity
+git config --global user.name "Your Full Name"
+git config --global user.email "your.email@example.com"
+
+# Step 2: Set up GitHub authentication
+# OPTION A: Personal Access Token (Recommended)
+# 1. Go to GitHub.com → Settings → Developer settings → Personal access tokens
+# 2. Generate new token (classic) with 'repo' permissions
+# 3. Copy the token
+# 4. When git asks for password, use the token instead
+
+# OPTION B: SSH Key (Advanced)
+# 1. Generate SSH key:
+ssh-keygen -t ed25519 -C "your.email@example.com"
+# 2. Add to SSH agent:
+ssh-add ~/.ssh/id_ed25519
+# 3. Copy public key to GitHub SSH settings:
+cat ~/.ssh/id_ed25519.pub
+
+# Step 3: Check branch name and push correctly
+git branch                    # Check current branch
+git push origin main         # If branch is 'main'
+# OR
+git push origin master       # If branch is 'master'
+```
 
 ---
 

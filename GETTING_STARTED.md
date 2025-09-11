@@ -39,6 +39,10 @@ Make sure you have:
 git clone <YOUR_GITHUB_REPO_URL>
 cd polydoc
 
+# Configure Git (IMPORTANT for new laptop)
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+
 # Run one-time setup script
 init-setup.bat
 ```
@@ -139,6 +143,29 @@ python main.py
 # Reinstall dependencies
 pip install --upgrade -r requirements.txt
 npm install
+```
+
+### Git push fails or exits early
+```bash
+# Configure Git credentials (first time)
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+
+# Set up GitHub authentication (choose one):
+# Option A: Personal Access Token (recommended)
+# Go to GitHub → Settings → Developer settings → Personal access tokens
+# Generate token and use as password
+
+# Option B: SSH key setup
+ssh-keygen -t rsa -b 4096 -C "your.email@example.com"
+# Add the public key to GitHub SSH keys
+
+# Check branch name (might be master vs main)
+git branch
+# If on master branch, push to master:
+git push origin master
+# If on main branch:
+git push origin main
 ```
 
 ---
