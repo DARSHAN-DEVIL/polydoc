@@ -940,7 +940,7 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
                 />
               </div>
             </div>
-          </div>
+          </motion.div>
 
           {/* Sidebar */}
           <motion.div 
