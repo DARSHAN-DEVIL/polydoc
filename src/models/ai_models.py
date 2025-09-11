@@ -964,108 +964,107 @@ class AIModelManager:
     async def generate_dual_language_summary(self, text: str, detected_language: str = None) -> Dict[str, str]:
         """Generate summary in both original language and English with better fallback support"""
         try:
-            # Detect language if not provided
-            if not detected_language:
-                detected_language = await self.detect_language_advanced(text)
-            
-            # Check if we have AI models available
-            if not hasattr(self, 'fallback_processor') or not self.models_loaded.get('embedding', False):
-                # Use simple extractive summarization
-                return self._generate_simple_bilingual_summary(text, detected_language)
-            
-            # Generate summary in original language
-            original_summary = await self.summarize_text(text, language=detected_language)
-            
-            # If original language is English, return same summary for both
-            if detected_language == 'en':
-                return {
-                    'summary': original_summary.content,
-                    'english_summary': original_summary.content,
-                    'original_language': detected_language,
-                    'translation_needed': False,
-                    'translation_confidence': 1.0
-                }
-            
-            # For non-English, try to create English version
-            try:
-                english_summary = await self.translate_text(
-                    original_summary.content, 
-                    detected_language, 
-                    'en'
-                )
-                english_content = english_summary.content
-                translation_confidence = english_summary.confidence
-            except Exception as trans_error:
-                self.logger.warning(f"Translation failed: {trans_error}, using original")
-                english_content = original_summary.content
-                translation_confidence = 0.5
-            
-            return {
-                'summary': original_summary.content,
-                'english_summary': english_content,
-                'original_language': detected_language,
-                'translation_needed': detected_language != 'en',
-                'translation_confidence': translation_confidence
-            }
+            # Always use simple extractive summarization (most reliable)
+            return self._generate_simple_bilingual_summary(text, detected_language or 'en')
             
         except Exception as e:
             self.logger.error(f"Error generating dual-language summary: {e}")
-            # Enhanced fallback
-            return self._generate_simple_bilingual_summary(text, detected_language or 'unknown')
+            # Ultimate fallback
+            preview = text[:200] + "..." if len(text) > 200 else text
+            return {
+                'original': f"Document Summary: {preview}",
+                'english': f"Document Summary: {preview}", 
+                'original_language': detected_language or 'en',
+                'translation_needed': False,
+                'translation_confidence': 0.5,
+                'method': 'ultimate_fallback'
+            }
     
     def _generate_simple_bilingual_summary(self, text: str, language: str) -> Dict[str, str]:
         """Generate simple extractive summary when AI models are not available"""
         try:
+            if not text or not text.strip():
+                return {
+                    'original': "No content available for summary.",
+                    'english': "No content available for summary.",
+                    'original_language': language,
+                    'translation_needed': False,
+                    'translation_confidence': 0.0
+                }
+            
             # Simple extractive approach
             import re
             
-            # Split into sentences
-            sentences = re.split(r'[.!?।]+', text)
+            # Split into sentences using multiple delimiters
+            sentences = re.split(r'[.!?।\n]+', text)
             sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
             
-            # Take first 3 sentences or up to 200 characters
-            summary_sentences = []
-            char_count = 0
-            
-            for sentence in sentences[:5]:  # Max 5 sentences
-                if char_count + len(sentence) < 200:
-                    summary_sentences.append(sentence)
-                    char_count += len(sentence)
-                else:
-                    break
-            
-            if not summary_sentences:
-                summary = text[:150] + "..." if len(text) > 150 else text
+            # If no sentences found, use the original text
+            if not sentences:
+                summary = text[:300] + "..." if len(text) > 300 else text
             else:
-                summary = '. '.join(summary_sentences) + '.'
+                # Take first few sentences up to reasonable length
+                summary_sentences = []
+                char_count = 0
+                max_chars = 300
+                
+                for sentence in sentences[:5]:  # Max 5 sentences
+                    if char_count + len(sentence) < max_chars:
+                        summary_sentences.append(sentence)
+                        char_count += len(sentence) + 2  # +2 for punctuation
+                    else:
+                        break
+                
+                if summary_sentences:
+                    summary = '. '.join(summary_sentences).rstrip('.') + '.'
+                else:
+                    summary = sentences[0][:max_chars] + "..." if len(sentences[0]) > max_chars else sentences[0]
             
-            # For Indian languages, provide language info
-            indian_languages = {'hi': 'Hindi', 'kn': 'Kannada', 'mr': 'Marathi', 'te': 'Telugu', 'ta': 'Tamil', 'bn': 'Bengali'}
+            # Language detection fallback
+            if not language or language == 'unknown':
+                # Simple language detection based on script
+                if re.search(r'[\u0900-\u097F]', text):  # Hindi/Devanagari
+                    language = 'hi'
+                elif re.search(r'[\u0C80-\u0CFF]', text):  # Kannada
+                    language = 'kn'
+                else:
+                    language = 'en'
+            
+            # Format summary based on language
+            indian_languages = {
+                'hi': 'Hindi', 'kn': 'Kannada', 'mr': 'Marathi', 'te': 'Telugu', 
+                'ta': 'Tamil', 'bn': 'Bengali', 'gu': 'Gujarati', 'pa': 'Punjabi',
+                'ml': 'Malayalam', 'or': 'Odia', 'as': 'Assamese'
+            }
             
             if language in indian_languages:
                 lang_name = indian_languages[language]
-                formatted_summary = f"**{lang_name} Content Summary:**\n{summary}\n\n**English Summary:**\n{summary}"
+                formatted_summary = f"📄 **Document Summary ({lang_name})**\n\n{summary}\n\n🔄 **English Translation**\n\n{summary}"
+                english_summary = f"📄 **Document Summary**\n\n{summary}"
             else:
-                formatted_summary = summary
+                formatted_summary = f"📄 **Document Summary**\n\n{summary}"
+                english_summary = formatted_summary
             
             return {
-                'summary': formatted_summary,
-                'english_summary': summary,
+                'original': formatted_summary,
+                'english': english_summary,
                 'original_language': language,
-                'translation_needed': False,
-                'translation_confidence': 0.7,
-                'method': 'extractive_fallback'
+                'translation_needed': language != 'en',
+                'translation_confidence': 0.8,
+                'method': 'extractive_summary'
             }
             
         except Exception as e:
-            self.logger.error(f"Even simple summary generation failed: {e}")
-            fallback_text = text[:100] + "..." if len(text) > 100 else text
+            self.logger.error(f"Simple summary generation failed: {e}")
+            # Ultimate fallback
+            safe_text = str(text)[:200] + "..." if len(str(text)) > 200 else str(text)
             return {
-                'summary': f"Document content preview: {fallback_text}",
-                'english_summary': f"Document content preview: {fallback_text}",
-                'original_language': language,
+                'original': f"📄 **Document Preview**\n\n{safe_text}",
+                'english': f"📄 **Document Preview**\n\n{safe_text}",
+                'original_language': language or 'en',
                 'translation_needed': False,
-                'translation_confidence': 0.0,
+                'translation_confidence': 0.3,
+                'method': 'preview_fallback',
                 'error': str(e)
             }
     
@@ -1213,11 +1212,15 @@ class DocumentAnalyzer:
                     document_type, len(page_info), languages_found, element_types_found, page_info
                 )
                 
+                # Safely extract summary components
+                original_summary = summary_result.get('original', summary_result.get('summary', 'Summary generation failed'))
+                english_summary = summary_result.get('english', summary_result.get('english_summary', original_summary))
+                
                 return {
-                    'summary': summary_result['original'] + document_info,
-                    'english_summary': summary_result['english'] + document_info,
-                    'original_language': summary_result['original_language'],
-                    'translation_needed': summary_result['translation_needed'],
+                    'summary': original_summary + document_info,
+                    'english_summary': english_summary + document_info,
+                    'original_language': summary_result.get('original_language', primary_language),
+                    'translation_needed': summary_result.get('translation_needed', False),
                     'translation_confidence': summary_result.get('translation_confidence', 0.0),
                     'languages_detected': languages_found,
                     'page_count': len(page_info),
