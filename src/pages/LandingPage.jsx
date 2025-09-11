@@ -448,8 +448,23 @@ export default function LandingPage() {
                 transition={{ duration: 0.8 }}
                 className="flex items-center justify-center"
               >
-                <div className="relative h-[350px] w-full md:h-[450px] lg:h-[500px] xl:h-[550px] overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                  <div className="text-white text-center">
+                <div className="relative h-[350px] w-full md:h-[450px] lg:h-[500px] xl:h-[550px] overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-600/20 flex items-center justify-center border border-indigo-300/30">
+                  <video 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // Fallback to icon if video fails to load
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  >
+                    <source src="/logo.mp4" type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                  <div className="hidden w-full h-full text-white text-center items-center justify-center flex-col">
                     <FileText className="h-24 w-24 mx-auto mb-4 opacity-80" />
                     <p className="text-lg font-medium">Document Processing</p>
                     <p className="text-sm opacity-80">Multi-lingual • Layout Preserved</p>
