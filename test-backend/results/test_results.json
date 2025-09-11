@@ -1,0 +1,74 @@
+{
+  "robustness": {
+    "total_tests": 8,
+    "successful_tests": 4,
+    "success_rate": 0.5,
+    "average_processing_time": 13.102099895477295,
+    "max_processing_time": 34.4233193397522,
+    "min_processing_time": 5.6574788093566895,
+    "detailed_results": {
+      "empty_text": [
+        {
+          "text_length": 0,
+          "embedding_shape": [
+            1,
+            384
+          ],
+          "sentiment": "positive",
+          "sentiment_confidence": 0.40129855275154114,
+          "summary_length": 295,
+          "processing_time": 5.7704713344573975,
+          "success": true
+        }
+      ],
+      "very_long_text": [
+        {
+          "text_length": 10000,
+          "embedding_shape": [
+            1,
+            384
+          ],
+          "sentiment": "negative",
+          "sentiment_confidence": 0.48323023319244385,
+          "summary_length": 264,
+          "processing_time": 34.4233193397522,
+          "success": true
+        }
+      ],
+      "special_characters": [
+        {
+          "text_length": 19,
+          "embedding_shape": [
+            1,
+            384
+          ],
+          "sentiment": "negative",
+          "sentiment_confidence": 0.5117664337158203,
+          "summary_length": 68,
+          "processing_time": 6.5571300983428955,
+          "success": true
+        }
+      ],
+      "multilingual": [
+        {
+          "text_length": 42,
+          "embedding_shape": [
+            1,
+            384
+          ],
+          "sentiment": "positive",
+          "sentiment_confidence": 0.9432764053344727,
+          "summary_length": 141,
+          "processing_time": 5.6574788093566895,
+          "success": true
+        }
+      ],
+      "processing_times": [
+        5.7704713344573975,
+        34.4233193397522,
+        6.5571300983428955,
+        5.6574788093566895
+      ]
+    }
+  }
+}

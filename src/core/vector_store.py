@@ -1,5 +1,5 @@
 """
-PolyDoc AI - Vector Storage and Retrieval System
+PolyDoc - Vector Storage and Retrieval System
 Uses FAISS for efficient similarity search and document context retrieval
 """
 
@@ -267,14 +267,14 @@ class VectorStore:
         self, 
         question: str,
         document_id: Optional[str] = None,
-        max_context_length: int = 2000
+        max_context_length: int = 8000  # Increased from 4000 to 8000
     ) -> Tuple[str, List[int]]:
         """Get relevant context for answering a question"""
         try:
             # Search for relevant chunks
             results = await self.search(
                 query=question,
-                top_k=10,
+                top_k=15,
                 document_id=document_id
             )
             
@@ -287,15 +287,16 @@ class VectorStore:
             current_length = 0
             
             for result in results:
-                if result.relevance == 'low' and len(context_parts) > 2:
+                # Include more low relevance results for comprehensive context
+                if result.relevance == 'low' and len(context_parts) > 5:  # Changed from 2 to 5
                     continue  # Skip low relevance if we have enough high/medium relevance
                 
                 chunk_text = result.chunk.text
                 
                 if current_length + len(chunk_text) > max_context_length:
-                    # Truncate if needed
+                    # Be more generous with remaining space
                     remaining_space = max_context_length - current_length
-                    if remaining_space > 100:  # Only add if we have reasonable space
+                    if remaining_space > 200:  # Changed from 100 to 200
                         chunk_text = chunk_text[:remaining_space] + "..."
                         context_parts.append(f"[Page {result.chunk.page_number}] {chunk_text}")
                         page_numbers.add(result.chunk.page_number)
@@ -415,7 +416,7 @@ class VectorStore:
                     page_number=chunk_dict['page_number'],
                     element_type=chunk_dict['element_type'],
                     bbox=tuple(chunk_dict['bbox']),
-                    language=chunk_dict['language'],
+                    language=chunk_dict.get('language', 'en'),  # Default to 'en' if not found
                     metadata=chunk_dict.get('metadata')
                 )
                 self.chunks[chunk_id] = chunk

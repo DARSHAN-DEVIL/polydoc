@@ -1,10 +1,12 @@
 {
   "name": "polydoc-ai-frontend",
   "version": "1.0.0",
-  "description": "PolyDoc AI React Frontend",
+  "description": "PolyDoc React Frontend",
   "main": "src/index.js",
   "scripts": {
     "dev": "vite",
+    "dev:emulators": "firebase emulators:start",
+    "dev:with-emulators": "concurrently \"npm run dev:emulators\" \"npm run dev\"",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext js,jsx,ts,tsx",
@@ -14,6 +16,7 @@
     "@types/node": "^24.3.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
+    "fastapi": "^0.0.8",
     "firebase": "^12.1.0",
     "framer-motion": "^10.16.16",
     "lucide-react": "^0.294.0",

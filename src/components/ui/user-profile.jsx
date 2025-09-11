@@ -36,9 +36,12 @@ export const UserProfile = ({ className = '' }) => {
         className="flex items-center space-x-2 p-2 rounded-3xl hover:bg-muted transition-colors"
       >
         <img
-          src={user.photoURL || '/default-avatar.png'}
+          src={user.photoURL || '/default-avatar.svg'}
           alt={user.displayName || 'User'}
-          className="w-8 h-8 rounded-full"
+          className="w-8 h-8 rounded-full ring-2 ring-primary/20 transition-all duration-200 hover:ring-primary/40"
+          onError={(e) => {
+            e.target.src = '/default-avatar.svg';
+          }}
         />
         <span className="hidden sm:block text-sm font-medium truncate max-w-24">
           {user.displayName?.split(' ')[0] || 'User'}
@@ -58,9 +61,12 @@ export const UserProfile = ({ className = '' }) => {
             <div className="p-4 border-b border-muted">
               <div className="flex items-center space-x-3">
                 <img
-                  src={user.photoURL || '/default-avatar.png'}
+                  src={user.photoURL || '/default-avatar.svg'}
                   alt={user.displayName || 'User'}
-                  className="w-10 h-10 rounded-full"
+                  className="w-10 h-10 rounded-full ring-2 ring-primary/20"
+                  onError={(e) => {
+                    e.target.src = '/default-avatar.svg';
+                  }}
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{user.displayName}</p>
@@ -76,7 +82,9 @@ export const UserProfile = ({ className = '' }) => {
                 <span className="text-sm">Profile</span>
               </button>
               
-              <button className="w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-muted transition-colors text-left">
+              <button className="w-full flex items-center space-x-3 p-3 rounded-xl hover:bg-muted transition-colors text-left" onClick={() => {
+                window.location.href = '/dashboard';
+              }}>
                 <FileText className="h-4 w-4" />
                 <span className="text-sm">My Documents</span>
               </button>

@@ -1,5 +1,5 @@
 """
-PolyDoc AI - FastAPI Backend with Real-time Chat Interface
+PolyDoc - FastAPI Backend with Real-time Chat Interface
 Provides RESTful API and WebSocket endpoints for document processing and chat
 """
 
@@ -12,13 +12,14 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 import json
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, HTTPException, Header, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import uvicorn
 
 # Import our custom modules
@@ -26,6 +27,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 from src.core.document_processor import DocumentProcessor, ProcessedDocument
+from src.core.mongodb_store import MongoDBStore, get_mongodb_store
 from src.core.vector_store import VectorStore
 from src.models.ai_models import AIModelManager, DocumentAnalyzer
 
@@ -33,17 +35,30 @@ from src.models.ai_models import AIModelManager, DocumentAnalyzer
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Security
+security = HTTPBearer(auto_error=False)
+
 # Pydantic models for API
+class UserInfo(BaseModel):
+    user_id: str
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+
 class ChatMessage(BaseModel):
     message: str
     document_id: Optional[str] = None
     language: Optional[str] = 'en'
+    user_id: str  # Add user_id to all requests
 
 class DocumentUploadResponse(BaseModel):
     document_id: str
     filename: str
     status: str
     summary: Optional[str] = None
+    english_summary: Optional[str] = None
+    original_language: Optional[str] = None
+    translation_needed: Optional[bool] = False
+    translation_confidence: Optional[float] = 0.0
     statistics: Dict[str, Any]
     processing_time: float
 
@@ -58,12 +73,46 @@ class DocumentListResponse(BaseModel):
     documents: List[Dict[str, Any]]
     total_count: int
 
+# Simple user validation (since Firebase handles auth on frontend)
+async def get_user_id(user_id: Optional[str] = Header(None, alias="X-User-ID")):
+    """Extract user ID from header for authenticated requests"""
+    if not user_id:
+        # For backward compatibility, allow requests without user ID (use default)
+        logger.info("No user ID provided, using default user")
+        return "default_user"
+    logger.info(f"User ID received: {user_id}")
+    return user_id
+
+# User-specific MongoDB store instances
+user_mongodb_stores: Dict[str, MongoDBStore] = {}
+
+async def get_user_mongodb_store(user_id: str = Depends(get_user_id)) -> MongoDBStore:
+    """Get or create user-specific MongoDB store"""
+    try:
+        if user_id not in user_mongodb_stores:
+            if not ai_models:
+                raise HTTPException(status_code=503, detail="AI models not initialized")
+            
+            # Create new user-specific MongoDB store
+            logger.info(f"Creating MongoDB store for user: {user_id}")
+            store = MongoDBStore(ai_models, user_id=user_id)
+            await store.connect()
+            user_mongodb_stores[user_id] = store
+            logger.info(f"MongoDB store created successfully for user: {user_id}")
+        
+        return user_mongodb_stores[user_id]
+    except Exception as e:
+        logger.error(f"Failed to create MongoDB store for user {user_id}: {e}")
+        # Fallback to default storage without MongoDB
+        raise HTTPException(status_code=503, detail="Database connection failed. Please ensure MongoDB is running.")
+
 # Global instances
-app = FastAPI(title="PolyDoc AI", version="1.0.0")
+app = FastAPI(title="PolyDoc", version="1.0.0")
 ai_models: Optional[AIModelManager] = None
 document_processor: Optional[DocumentProcessor] = None
-vector_store: Optional[VectorStore] = None
+mongodb_store: Optional[MongoDBStore] = None  # Keep for backward compatibility
 document_analyzer: Optional[DocumentAnalyzer] = None
+vector_store: Optional[VectorStore] = None  # Keep but will be replaced by MongoDB
 
 # Setup templates and static files
 templates = Jinja2Templates(directory="templates")
@@ -115,7 +164,7 @@ initialization_status = {
 # Background model initialization
 async def initialize_models_background():
     """Initialize AI models in the background"""
-    global ai_models, document_processor, vector_store, document_analyzer, initialization_status
+    global ai_models, document_processor, mongodb_store, document_analyzer, vector_store, initialization_status
     
     try:
         initialization_status["message"] = "Loading AI models..."
@@ -169,10 +218,10 @@ async def initialize_models_background():
         initialization_status["message"] = "System ready!"
         initialization_status["models_ready"] = True
         
-        logger.info("PolyDoc AI initialization completed successfully!")
+        logger.info("PolyDoc initialization completed successfully!")
         
     except Exception as e:
-        logger.error(f"Failed to initialize PolyDoc AI: {e}")
+        logger.error(f"Failed to initialize PolyDoc: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
         logger.error(f"Exception details: {str(e)}")
         
@@ -188,7 +237,7 @@ async def initialize_models_background():
 @app.on_event("startup")
 async def startup_event():
     """Start the application with background model loading"""
-    logger.info("Starting PolyDoc AI web server...")
+    logger.info("Starting PolyDoc web server...")
     logger.info("Starting background AI model initialization...")
     
     # Start model initialization in background
@@ -219,19 +268,40 @@ async def get_initialization_status():
 
 # Document upload endpoint
 @app.post("/upload", response_model=DocumentUploadResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...), 
+    user_store: MongoDBStore = Depends(get_user_mongodb_store),
+    user_id: str = Depends(get_user_id)
+):
     """Upload and process a document"""
     start_time = time.time()
     
     try:
-        # Validate file type
-        supported_extensions = {'.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.tiff', '.bmp'}
+        # Check if models are initialized
+        if not all([ai_models, document_processor, vector_store, document_analyzer]):
+            raise HTTPException(
+                status_code=503, 
+                detail="System is still initializing. Please wait a moment and try again."
+            )
+        # Validate file type (now supports many more formats)
+        supported_extensions = {
+            # Original formats
+            '.pdf', '.docx', '.pptx', '.png', '.jpg', '.jpeg', '.tiff', '.bmp',
+            # New text formats
+            '.txt', '.rtf', '.md', '.markdown',
+            # Spreadsheet formats
+            '.csv', '.xlsx', '.xls',
+            # Structured data formats
+            '.json', '.xml', '.html', '.htm',
+            # OpenDocument formats
+            '.odt'
+        }
         file_extension = Path(file.filename).suffix.lower()
         
         if file_extension not in supported_extensions:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Unsupported file type: {file_extension}"
+                detail=f"Unsupported file type: {file_extension}. Supported formats: {', '.join(sorted(supported_extensions))}"
             )
         
         # Create unique document ID
@@ -254,13 +324,19 @@ async def upload_document(file: UploadFile = File(...)):
         logger.info(f"Processing document {document_id}: {file.filename}")
         processed_doc = await document_processor.process_document(str(file_path))
         
-        # Add to vector store
-        chunks_added = await vector_store.add_document(document_id, processed_doc.elements)
+        # Add to user-specific MongoDB store instead of vector store
+        chunks_added = await user_store.add_document(
+            document_id=document_id,
+            user_id=user_id,
+            filename=file.filename,
+            elements=processed_doc.elements
+        )
         
-        # Generate summary
-        summary = await document_analyzer.generate_document_summary(
+        # Generate dual-language summary
+        summary_data = await document_analyzer.generate_document_summary(
             processed_doc.elements, 
-            summary_length='medium'
+            summary_length='medium',
+            dual_language=True
         )
         
         # Get document statistics
@@ -275,7 +351,11 @@ async def upload_document(file: UploadFile = File(...)):
             document_id=document_id,
             filename=file.filename,
             status="processed",
-            summary=summary,
+            summary=summary_data.get('summary', 'No summary available'),
+            english_summary=summary_data.get('english_summary', summary_data.get('summary', 'No summary available')),
+            original_language=summary_data.get('original_language', 'unknown'),
+            translation_needed=summary_data.get('translation_needed', False),
+            translation_confidence=summary_data.get('translation_confidence', 0.0),
             statistics=stats,
             processing_time=processing_time
         )
@@ -286,24 +366,14 @@ async def upload_document(file: UploadFile = File(...)):
 
 # Document list endpoint
 @app.get("/documents", response_model=DocumentListResponse)
-async def list_documents():
+async def list_documents(
+    user_store: MongoDBStore = Depends(get_user_mongodb_store),
+    user_id: str = Depends(get_user_id)
+):
     """Get list of processed documents"""
     try:
-        if not vector_store:
-            return DocumentListResponse(documents=[], total_count=0)
-        
-        stats = vector_store.get_statistics()
-        documents = []
-        
-        for doc_id, metadata in vector_store.document_metadata.items():
-            documents.append({
-                "document_id": doc_id,
-                "total_chunks": metadata.get("total_chunks", 0),
-                "languages": metadata.get("languages", []),
-                "pages": metadata.get("pages", []),
-                "element_types": metadata.get("element_types", []),
-                "added_timestamp": metadata.get("added_timestamp", 0)
-            })
+        # Get user-specific documents from MongoDB
+        documents = await user_store.list_user_documents(user_id)
         
         return DocumentListResponse(
             documents=documents,
@@ -316,7 +386,10 @@ async def list_documents():
 
 # Chat endpoint (REST API)
 @app.post("/chat", response_model=ChatResponse)
-async def chat(message: ChatMessage):
+async def chat(
+    message: ChatMessage,
+    user_store: MongoDBStore = Depends(get_user_mongodb_store)
+):
     """Process chat message and return response"""
     start_time = time.time()
     
@@ -324,9 +397,10 @@ async def chat(message: ChatMessage):
         if not all([ai_models, vector_store]):
             raise HTTPException(status_code=500, detail="AI models not initialized")
         
-        # Get relevant context from vector store
-        context, page_numbers = await vector_store.get_context_for_question(
-            message.message,
+        # Get relevant context from user's MongoDB store
+        context, page_numbers = await user_store.get_context_for_question(
+            question=message.message,
+            user_id=message.user_id,
             document_id=message.document_id
         )
         
@@ -615,7 +689,7 @@ async def test_static_files():
 async def api_root():
     """API root endpoint"""
     return {
-        "message": "PolyDoc AI - Multi-lingual Document Understanding System",
+        "message": "PolyDoc - Multi-lingual Document Understanding System",
         "version": "1.0.0",
         "status": "operational",
         "endpoints": {

@@ -104,9 +104,21 @@ function GoogleSignInModal({ isOpen, onClose }) {
       >
         <div className="text-center space-y-6">
           <div className="flex items-center justify-center space-x-3 mb-6">
-            <div className="h-12 w-12 rounded-3xl bg-primary flex items-center justify-center">
-              <FileText className="h-6 w-6 text-primary-foreground" />
-            </div>
+                <div className="h-12 w-12 rounded-3xl overflow-hidden ring-2 ring-primary/20">
+                  <img 
+                    src="/default-avatar.svg" 
+                    alt="PolyDoc AI Logo" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to icon if image fails to load
+                      e.target.style.display = 'none';
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="hidden w-full h-full bg-primary items-center justify-center">
+                    <FileText className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                </div>
             <h2 className="text-2xl font-bold">PolyDoc AI</h2>
           </div>
           
@@ -228,9 +240,21 @@ export default function LandingPage() {
               <motion.div
                 whileHover={{ rotate: 5, scale: 1.1 }}
                 transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                className="h-10 w-10 rounded-3xl bg-primary flex items-center justify-center"
+                className="h-10 w-10 rounded-3xl overflow-hidden ring-2 ring-primary/20"
               >
-                <FileText className="h-5 w-5 text-primary-foreground" />
+                <img 
+                  src="/default-avatar.svg" 
+                  alt="PolyDoc AI Logo" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // Fallback to icon if image fails to load
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling.style.display = 'flex';
+                  }}
+                />
+                <div className="hidden w-full h-full bg-primary items-center justify-center">
+                  <FileText className="h-5 w-5 text-primary-foreground" />
+                </div>
               </motion.div>
               <span className="font-bold text-xl">PolyDoc AI</span>
             </div>
@@ -238,9 +262,6 @@ export default function LandingPage() {
           <nav className="hidden md:flex gap-3">
             <a href="#features" className="text-sm font-medium transition-colors hover:text-primary">
               Features
-            </a>
-            <a href="#demo" className="text-sm font-medium transition-colors hover:text-primary">
-              Demo
             </a>
             <a href="#about" className="text-sm font-medium transition-colors hover:text-primary">
               About
@@ -251,21 +272,33 @@ export default function LandingPage() {
           </nav>
           <div className="hidden md:flex items-center gap-3">
             <ThemeToggle className="rounded-3xl" />
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="rounded-3xl"
-              onClick={() => setShowSignInModal(true)}
-            >
-              Sign In
-            </Button>
-            <Button 
-              size="sm" 
-              className="rounded-3xl"
-              onClick={() => setShowSignInModal(true)}
-            >
-              Get Started
-            </Button>
+            {!user ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="rounded-3xl"
+                  onClick={() => setShowSignInModal(true)}
+                >
+                  Sign In
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="rounded-3xl"
+                  onClick={() => setShowSignInModal(true)}
+                >
+                  Get Started
+                </Button>
+              </>
+            ) : (
+              <Button 
+                size="sm" 
+                className="rounded-3xl"
+                onClick={() => navigate('/dashboard')}
+              >
+                Go to Dashboard
+              </Button>
+            )}
           </div>
           <div className="flex md:hidden items-center gap-3">
             <ThemeToggle className="rounded-3xl" />
@@ -308,7 +341,7 @@ export default function LandingPage() {
             animate="visible"
             className="container grid gap-3 pb-8 pt-6"
           >
-            {["Features", "Demo", "About", "Contact"].map((item, index) => (
+            {["Features", "About", "Contact"].map((item, index) => (
               <motion.div key={index} variants={itemFadeIn}>
                 <a
                   href={`#${item.toLowerCase()}`}
@@ -406,14 +439,6 @@ export default function LandingPage() {
                     >
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </motion.span>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="lg" 
-                    className="rounded-3xl"
-                    onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-                  >
-                    Try Demo
                   </Button>
                 </motion.div>
               </motion.div>

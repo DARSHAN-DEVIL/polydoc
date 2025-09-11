@@ -10,9 +10,20 @@ class PolyDocApp {
         this.currentDocumentId = null;
         this.selectedLanguage = 'en';
         this.isProcessing = false;
+        this.userId = this.getUserId();
         
         // Initialize the application
         this.init();
+    }
+    
+    getUserId() {
+        // Get or create a user ID for this session
+        let userId = localStorage.getItem('polydoc_user_id');
+        if (!userId) {
+            userId = 'user_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            localStorage.setItem('polydoc_user_id', userId);
+        }
+        return userId;
     }
     
     init() {
@@ -402,6 +413,9 @@ class PolyDocApp {
         try {
             const response = await fetch(`${this.baseURL}/upload`, {
                 method: 'POST',
+                headers: {
+                    'user_id': this.userId
+                },
                 body: formData
             });
             
@@ -464,7 +478,11 @@ class PolyDocApp {
     // Document Management
     async loadDocuments() {
         try {
-            const response = await fetch(`${this.baseURL}/documents`);
+            const response = await fetch(`${this.baseURL}/documents`, {
+                headers: {
+                    'user_id': this.userId
+                }
+            });
             const data = await response.json();
             
             this.displayDocuments(data.documents);
@@ -665,6 +683,7 @@ class PolyDocApp {
         // Send message via WebSocket
         const messageData = {
             message: message,
+            user_id: this.userId,
             document_id: this.currentDocumentId,
             language: this.selectedLanguage
         };
@@ -876,7 +895,10 @@ class PolyDocApp {
         
         try {
             const response = await fetch(`${this.baseURL}/documents/${documentId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'user_id': this.userId
+                }
             });
             
             if (!response.ok) {

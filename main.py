@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PolyDoc AI - Main Application Entry Point
+PolyDoc - Main Application Entry Point
 Multi-lingual Document Understanding and Layout Preservation System
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 # Import the FastAPI application
-from src.api.main import app
+from src.api.main_mongodb import app
 
 def setup_logging():
     """Configure logging for the application"""
@@ -31,7 +31,7 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
     
-    logger.info("Starting PolyDoc AI - Multi-lingual Document Understanding System")
+    logger.info("Starting PolyDoc - Multi-lingual Document Understanding System")
     logger.info("=" * 70)
     logger.info("Features:")
     logger.info("• Multi-format document processing (PDF, DOCX, PPTX, Images)")
@@ -57,7 +57,7 @@ def main():
     
     try:
         uvicorn.run(
-            "src.api.main:app",  # Use string import instead of app object
+            "src.api.main_mongodb:app",  # Use string import instead of app object
             host="127.0.0.1",
             port=8000,
             log_level="info",
