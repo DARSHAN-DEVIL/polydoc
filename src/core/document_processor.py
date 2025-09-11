@@ -77,31 +77,34 @@ class DocumentProcessor:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         
-        # Initialize EasyOCR with smart language selection
+        # Initialize EasyOCR with smart language selection and memory optimization
         # EasyOCR has compatibility restrictions between certain language combinations
         self.ocr_readers = {}
         self.primary_ocr_reader = None
+        self.use_tesseract_fallback = False
         
-        # Define compatible language groups for EasyOCR
+        # Define compatible language groups for EasyOCR (starting with most important)
         # Note: Some languages may not be compatible together, so we test individual pairs
         compatible_groups = [
-            ['en', 'hi'],  # English + Hindi (Devanagari)
-            ['en', 'kn'],  # English + Kannada
-            ['en', 'ta'],  # English + Tamil
-            ['en', 'te'],  # English + Telugu
-            ['en', 'bn'],  # English + Bengali
-            ['en', 'gu'],  # English + Gujarati
-            ['en', 'ml'],  # English + Malayalam
-            ['en', 'pa'],  # English + Punjabi
-            ['en']         # Fallback: English only
+            ['en'],         # Start with English only for stability
+            ['en', 'hi'],   # English + Hindi (Devanagari)
+            ['en', 'kn'],   # English + Kannada
+            ['hi'],         # Hindi only
+            ['kn'],         # Kannada only
         ]
         
-        # Try to initialize OCR readers for each compatible group
+        # Try to initialize OCR readers for each compatible group with better error handling
         initialized_count = 0
         for i, languages in enumerate(compatible_groups):
             try:
                 self.logger.info(f"Attempting to initialize OCR with languages: {languages}")
-                reader = easyocr.Reader(languages, gpu=False)  # Force CPU to avoid GPU issues
+                # Use more conservative settings to avoid memory issues
+                reader = easyocr.Reader(
+                    languages, 
+                    gpu=False,  # Force CPU to avoid GPU issues
+                    verbose=False,  # Reduce logging
+                    download_enabled=True  # Allow downloading if needed
+                )
                 group_key = '+'.join(languages)
                 self.ocr_readers[group_key] = reader
                 
@@ -114,26 +117,38 @@ class DocumentProcessor:
                 
                 initialized_count += 1
                 
-                # For efficiency, limit to a few key combinations
-                if initialized_count >= 3:
+                # For efficiency and memory, limit to fewer combinations
+                if initialized_count >= 2:  # Reduced from 3 to 2
                     self.logger.info(f"Initialized {initialized_count} OCR readers, stopping for efficiency")
                     break
                 
             except Exception as e:
-                self.logger.warning(f"❌ Could not initialize OCR for {languages}: {e}")
+                error_msg = str(e)
+                if "not enough memory" in error_msg.lower() or "allocate" in error_msg.lower():
+                    self.logger.error(f"❌ Memory allocation failed for {languages}: {e}")
+                    self.logger.info("Switching to Tesseract fallback due to memory constraints...")
+                    self.use_tesseract_fallback = True
+                    break
+                else:
+                    self.logger.warning(f"❌ Could not initialize OCR for {languages}: {e}")
                 continue
         
-        if initialized_count == 0:
-            # Absolute fallback
+        if initialized_count == 0 or self.use_tesseract_fallback:
+            # Fallback to Tesseract when EasyOCR fails
             try:
-                self.logger.info("Attempting fallback English-only OCR initialization...")
-                self.primary_ocr_reader = easyocr.Reader(['en'], gpu=False)
-                self.ocr_readers['en'] = self.primary_ocr_reader
-                self.logger.warning("⚠️ Only English OCR could be initialized")
+                self.logger.info("Attempting Tesseract OCR fallback initialization...")
+                # Test if tesseract is available
+                import pytesseract
+                pytesseract.image_to_string(Image.new('RGB', (100, 30), color='white'))
+                self.use_tesseract_fallback = True
+                self.primary_ocr_reader = None  # Will use tesseract
+                self.logger.info("✅ Tesseract OCR fallback initialized")
                 initialized_count = 1
             except Exception as e:
-                self.logger.error(f"❌ Failed to initialize even basic English OCR: {e}")
+                self.logger.error(f"❌ Failed to initialize Tesseract OCR: {e}")
+                self.logger.warning("⚠️ No OCR available - image processing will be limited")
                 self.primary_ocr_reader = None
+                self.use_tesseract_fallback = False
         else:
             self.logger.info(f"✅ Successfully initialized {initialized_count} OCR reader groups")
         
@@ -582,27 +597,37 @@ class DocumentProcessor:
                 try:
                     self.logger.info(f"Running OCR on preprocessed image {i+1}/{len(processed_images)}...")
                     
-                    # Save processed image temporarily for EasyOCR
-                    temp_path = file_path.parent / f"temp_processed_{i}_{file_path.name}"
-                    cv2.imwrite(str(temp_path), processed_img)
+                    ocr_results = []
                     
-                    # Try to detect language from image first for better OCR
-                    # For now, use primary reader - could be enhanced later
-                    selected_reader = self.primary_ocr_reader or self.ocr_reader
-                    if not selected_reader:
-                        self.logger.warning("No OCR reader available, skipping this preprocessing version")
-                        continue
-                    
-                    # Perform OCR with EasyOCR
-                    ocr_results = selected_reader.readtext(str(temp_path))
-                    
-                    # Clean up temp file
-                    if temp_path.exists():
-                        temp_path.unlink()
+                    # Choose OCR method based on what's available
+                    if self.use_tesseract_fallback or not self.primary_ocr_reader:
+                        # Use Tesseract OCR
+                        ocr_results = self._extract_text_with_tesseract_direct(processed_img, i)
+                    else:
+                        # Use EasyOCR
+                        # Save processed image temporarily for EasyOCR
+                        temp_path = file_path.parent / f"temp_processed_{i}_{file_path.name}"
+                        cv2.imwrite(str(temp_path), processed_img)
+                        
+                        try:
+                            selected_reader = self.primary_ocr_reader or self.ocr_reader
+                            if selected_reader:
+                                # Perform OCR with EasyOCR
+                                ocr_results = selected_reader.readtext(str(temp_path))
+                            else:
+                                self.logger.warning("No EasyOCR reader available")
+                                ocr_results = []
+                        except Exception as ocr_error:
+                            self.logger.warning(f"EasyOCR failed: {ocr_error}, trying Tesseract...")
+                            ocr_results = self._extract_text_with_tesseract_direct(processed_img, i)
+                        finally:
+                            # Clean up temp file
+                            if temp_path.exists():
+                                temp_path.unlink()
                     
                     # Store results with preprocessing info
                     for result in ocr_results:
-                        if len(result) >= 3 and result[2] > 0.3:  # confidence threshold
+                        if len(result) >= 3 and result[2] > 0.2:  # Lowered confidence threshold
                             best_results.append((result, i))
                     
                     self.logger.info(f"OCR on version {i+1} found {len(ocr_results)} text regions")
@@ -1120,14 +1145,33 @@ class DocumentProcessor:
     
     def _detect_language(self, text: str) -> str:
         """Enhanced language detection based on character analysis with Indian language support"""
-        if not text:
+        if not text or not text.strip():
+            return 'unknown'
+        
+        # Clean and normalize the text first
+        try:
+            # Ensure proper Unicode handling
+            if isinstance(text, bytes):
+                text = text.decode('utf-8', errors='ignore')
+            
+            # Remove control characters and normalize whitespace
+            import re
+            text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', text)
+            text = re.sub(r'\s+', ' ', text).strip()
+            
+            if len(text) < 3:
+                return 'unknown'
+            
+        except Exception as e:
+            self.logger.debug(f"Text normalization failed: {e}")
             return 'unknown'
         
         # Try using the advanced Indian language detector first
         try:
             from src.utils.indian_language_detector import detect_indian_language
             detection = detect_indian_language(text)
-            if detection.confidence > 0.5:  # If confident, use it
+            if detection.confidence > 0.4:  # Lowered threshold for better detection
+                self.logger.debug(f"Detected language: {detection.language_code} ({detection.confidence:.2f})")
                 return detection.language_code
         except Exception as e:
             self.logger.debug(f"Indian language detection failed, falling back to simple detection: {e}")
@@ -1253,6 +1297,73 @@ class DocumentProcessor:
             
         except Exception as e:
             self.logger.warning(f"Tesseract processing failed: {e}")
+        
+        return results
+    
+    def _extract_text_with_tesseract_direct(self, image: np.ndarray, version: int) -> List[Tuple[Any, int]]:
+        """Extract text using Tesseract OCR directly from image array with multilingual support"""
+        results = []
+        
+        try:
+            # Convert image to PIL format for Tesseract
+            pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+            
+            # Configure Tesseract for multiple languages
+            # Try different language combinations based on common usage
+            lang_configs = [
+                'eng+hin+kan',  # English + Hindi + Kannada
+                'eng+hin',      # English + Hindi
+                'eng+kan',      # English + Kannada
+                'eng',          # English only
+            ]
+            
+            best_results = []
+            best_count = 0
+            
+            for lang_config in lang_configs:
+                try:
+                    # Get text with bounding boxes using current language config
+                    data = pytesseract.image_to_data(
+                        pil_image, 
+                        output_type=pytesseract.Output.DICT,
+                        lang=lang_config,
+                        config='--psm 6'  # Assume a single uniform block of text
+                    )
+                    
+                    current_results = []
+                    for i in range(len(data['text'])):
+                        text = data['text'][i].strip()
+                        confidence = int(data['conf'][i])
+                        
+                        if text and confidence > 25:  # Lower threshold for multilingual
+                            x, y, w, h = data['left'][i], data['top'][i], data['width'][i], data['height'][i]
+                            bbox = [x, y, w, h]
+                            
+                            # Format: (text, bbox, confidence/100)
+                            current_results.append((text, bbox, confidence/100.0))
+                    
+                    # Keep the configuration that found the most text
+                    if len(current_results) > best_count:
+                        best_count = len(current_results)
+                        best_results = current_results
+                        self.logger.debug(f"Best results so far with {lang_config}: {len(current_results)} regions")
+                    
+                    # If we found good results, don't try more configs
+                    if len(current_results) > 5:
+                        break
+                        
+                except Exception as lang_error:
+                    self.logger.debug(f"Language config {lang_config} failed: {lang_error}")
+                    continue
+            
+            # Format results for compatibility with EasyOCR format
+            for text, bbox, confidence in best_results:
+                results.append(((text, bbox, confidence), version))
+            
+            self.logger.info(f"Tesseract direct processing found {len(results)} text regions")
+            
+        except Exception as e:
+            self.logger.warning(f"Tesseract direct processing failed: {e}")
         
         return results
     

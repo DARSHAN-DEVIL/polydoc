@@ -50,6 +50,14 @@ init-setup.bat
 # Option B: PowerShell (if batch file exits early)
 PowerShell -ExecutionPolicy Bypass -File init-setup.ps1
 ```
+# option C : commands manual (reccommended)
+   pip install -r requirements.txt
+   npm install
+   pip install hf_xet
+   mkdir uploads static templates
+
+   #next step
+    start-all.bat 
 
 The setup script will:
 - ✅ Check system requirements
