@@ -22,16 +22,18 @@
 
 ### ✨ Enhanced Key Features
 - **Multi-format Document Processing**: PDF, DOCX, PPTX, and image formats with advanced OCR
-- **🌍 Enhanced Multi-language Support**: 12+ languages with specialized **Indian Language Detection** (Hindi, Kannada, Marathi, Telugu, Tamil, Bengali, Gujarati, Punjabi, Malayalam, Odia, Assamese + English)
+- **🌍 Enhanced Multi-language Support**: 50+ languages with specialized **Indian Language Detection** (Hindi, Kannada, Marathi, Telugu, Tamil, Bengali, Gujarati, Punjabi, Malayalam, Odia, Assamese + English)
 - **🔄 Bilingual AI Responses**: Automatic bilingual summary generation and Q&A for Indian languages
 - **AI-Powered Chat Interface**: Real-time document interaction with multilingual support
 - **Vector-Based Semantic Search**: Efficient document retrieval with FAISS
 - **Layout Preservation**: Advanced document structure detection with improved error handling
 - **Free AI Models**: No paid APIs required - fully open-source stack
 - **🧪 Comprehensive ML Testing Framework**: Advanced model validation with multilingual testing capabilities
-- **🎨 Modern Glassmorphism UI**: Improved user experience with animated components and responsive design
+- **🎨 Modern Dark-Themed UI**: Revolutionary design with Lenis smooth scrolling, advanced animations, and glass morphism effects
 - **⚡ Concurrent Document Processing**: Thread-safe upload handling with real-time progress tracking
 - **📊 Enhanced Analytics**: Document insights with language detection and processing metrics
+- **✨ Advanced Animation System**: Scroll-triggered reveals, magnetic buttons, parallax effects, and smooth transitions
+- **🚀 Premium User Experience**: Modern typography, floating elements, and interactive micro-animations
 
 ### Project Scope
 - **Primary Use Case**: Enterprise document management and AI-powered document analysis
@@ -167,6 +169,9 @@ block-beta
 |------------|---------|---------|
 | **FastAPI** | Backend REST API framework | 0.100.0+ |
 | **React** | Frontend user interface framework | 18.2.0+ |
+| **Framer Motion** | Advanced animation library for React | 11.0.0+ |
+| **Lenis** | Smooth scrolling library | 1.0.40+ |
+| **Tailwind CSS** | Utility-first CSS framework | 3.4.0+ |
 | **Uvicorn** | ASGI web server | 0.23.0+ |
 | **Vite** | Frontend build tool and development server | 5.0.8+ |
 
@@ -181,7 +186,43 @@ block-beta
 
 ---
 
-## 4. AI Models & Libraries
+## 4. Modern UI/UX & Animation System
+
+### 4.1 Design Philosophy
+PolyDoc AI features a revolutionary design system that combines:
+- **Dark-first aesthetic** with gradient backgrounds and glass morphism effects
+- **Premium animations** powered by Framer Motion and Lenis
+- **Scroll-based interactions** with parallax effects and reveal animations
+- **Magnetic interactions** for enhanced user engagement
+
+### 4.2 Animation Technologies
+| Technology | Purpose | Implementation |
+|------------|---------|----------------|
+| **Lenis** | Smooth scrolling with custom easing | Advanced scroll physics with momentum |
+| **Framer Motion** | React animations and transitions | Declarative animation API |
+| **CSS Transform** | Hardware-accelerated animations | GPU-optimized 3D transformations |
+| **Intersection Observer** | Scroll-triggered animations | Efficient viewport detection |
+
+### 4.3 Key Animation Features
+- **Scroll Progress Indicator**: Real-time scroll position visualization
+- **Text Reveal Animations**: Staggered text entrance effects
+- **Magnetic Buttons**: Interactive hover effects with spring physics
+- **Parallax Effects**: Multi-layer scrolling with depth
+- **3D Logo Animation**: Scroll-responsive 3D transformations
+- **Floating Elements**: Organic movement with complex easing
+- **Glass Morphism Cards**: Modern card design with backdrop blur
+- **Liquid Buttons**: Smooth fill animations on interaction
+
+### 4.4 Performance Optimizations
+- **Hardware acceleration** for all animations
+- **Intersection Observer** for efficient scroll detection
+- **Request Animation Frame** for smooth 60fps animations
+- **CSS-in-JS** optimizations for runtime performance
+- **Debounced scroll handlers** to prevent performance issues
+
+---
+
+## 5. AI Models & Libraries
 
 ### Core AI Framework
 | Library | Purpose | Version | License |

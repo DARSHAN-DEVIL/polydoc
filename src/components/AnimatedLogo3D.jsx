@@ -1,28 +1,61 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { FolderOpen } from 'lucide-react';
+import { motion, useScroll, useTransform } from 'framer-motion';
+import { FolderOpen, FileText, Sparkles } from 'lucide-react';
+import { useParallax, useScrollReveal } from '@/hooks/useScrollAnimations';
 
 const AnimatedLogo3D = () => {
+  const [ref, isVisible] = useScrollReveal(0.3);
+  const { scrollY } = useScroll();
+  
+  // Scroll-based transformations
+  const rotateX = useTransform(scrollY, [0, 500], [0, 360]);
+  const scale = useTransform(scrollY, [0, 300], [1, 0.8]);
+  const opacity = useTransform(scrollY, [0, 200], [1, 0.7]);
+
   return (
-    <div className="relative w-full h-full flex items-center justify-center perspective-1000">
-      {/* 3D Container */}
+    <div ref={ref} className="relative w-full h-full flex items-center justify-center perspective-1000">
+      {/* Morphing background shape */}
       <motion.div
-        initial={{ rotateY: -30, rotateX: 15, scale: 0.8 }}
-        animate={{ 
-          rotateY: [0, 5, 0, -5, 0],
-          rotateX: [15, 10, 15, 20, 15],
-          scale: [0.8, 1, 0.9, 1, 0.8]
+        className="absolute inset-0 bg-gradient-to-r from-primary/5 via-purple-500/5 to-blue-500/5 rounded-3xl"
+        animate={{
+          borderRadius: [
+            "60% 40% 30% 70% / 60% 30% 70% 40%",
+            "30% 60% 70% 40% / 50% 60% 30% 60%",
+            "50% 60% 30% 60% / 60% 40% 30% 70%",
+            "60% 40% 30% 70% / 60% 30% 70% 40%"
+          ]
         }}
         transition={{
-          duration: 8,
+          duration: 12,
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="transform-gpu preserve-3d"
-        style={{ 
-          transformStyle: 'preserve-3d',
-          perspective: '1000px'
+      />
+      
+      {/* 3D Container with scroll effects */}
+      <motion.div
+        initial={{ rotateY: -30, rotateX: 15, scale: 0.8, opacity: 0 }}
+        animate={isVisible ? { 
+          rotateY: 0,
+          rotateX: 0,
+          scale: 1,
+          opacity: 1
+        } : {
+          rotateY: -30,
+          rotateX: 15,
+          scale: 0.8,
+          opacity: 0
         }}
+        style={{
+          rotateX,
+          scale,
+          opacity
+        }}
+        transition={{
+          duration: 1.5,
+          ease: [0.25, 0.46, 0.45, 0.94]
+        }}
+        className="transform-gpu preserve-3d"
       >
         {/* Main Logo Container */}
         <div className="relative group">
