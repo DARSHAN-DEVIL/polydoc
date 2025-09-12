@@ -591,13 +591,24 @@ export default function Dashboard() {
           filename: uploadResult.filename
         });
         
-        // Add success message
-        const successMessage = `Γ£à Document uploaded successfully!\n\nSummary: ${uploadResult.summary || 'Document processed successfully.'}`;
-        setMessages((prev) => [...prev, { 
-          text: successMessage, 
-          isUser: false, 
-          timestamp: new Date() 
-        }]);
+        // Add success message with better formatting
+        const successMessage = `✅ Document uploaded successfully!`;
+        const summaryMessage = uploadResult.summary ? `📄 Summary: ${uploadResult.summary}` : 'Document processed successfully.';
+        
+        setMessages((prev) => [...prev, 
+          { 
+            text: successMessage, 
+            isUser: false, 
+            timestamp: new Date(),
+            type: 'success'
+          },
+          {
+            text: summaryMessage,
+            isUser: false,
+            timestamp: new Date(),
+            type: 'summary'
+          }
+        ]);
         
         // If there's a message, send it as chat
         if (message.trim()) {
@@ -909,22 +920,33 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}
-                      >
+                      {messages.map((msg, index) => (
                         <div
-                          className={`max-w-[80%] p-3 rounded-2xl ${
-                            msg.isUser
-                              ? "bg-primary text-primary-foreground rounded-tr-none"
-                              : "bg-muted text-foreground rounded-tl-none"
-                          } animate-fade-in`}
+                          key={index}
+                          className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}
                         >
-                          <p className="text-sm">{msg.text}</p>
+                          <div
+                            className={`max-w-[80%] p-4 rounded-2xl animate-fade-in ${
+                              msg.isUser
+                                ? "bg-blue-600 text-white rounded-tr-none shadow-lg"
+                                : msg.type === 'success'
+                                ? "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-700 rounded-tl-none"
+                                : msg.type === 'summary'
+                                ? "bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-700 rounded-tl-none shadow-sm"
+                                : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none"
+                            }`}
+                          >
+                            <p className={`text-sm leading-relaxed ${
+                              msg.type === 'summary' ? 'whitespace-pre-wrap' : ''
+                            }`}>{msg.text}</p>
+                            {msg.timestamp && (
+                              <p className="text-xs opacity-70 mt-2">
+                                {new Date(msg.timestamp).toLocaleTimeString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                     {isUploading && (
                       <div className="flex justify-start">
                         <div className="max-w-[80%] p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-tl-none">
