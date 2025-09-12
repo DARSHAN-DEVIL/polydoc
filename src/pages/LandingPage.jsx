@@ -5,52 +5,41 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import AnimatedLogo3D from '@/components/AnimatedLogo3D';
-import { 
-  MagneticButton, 
-  ScrollProgress, 
-  TextReveal, 
-  ModernCard, 
-  FloatingOrb,
-  LiquidButton,
-  AnimatedCounter
-} from '@/components/ModernUI';
-import { useLenis } from '@/hooks/useLenis';
-import { useScrollReveal, useParallax } from '@/hooks/useScrollAnimations';
-import { 
-  FileText, 
-  Menu, 
-  X, 
-  ArrowRight, 
-  ChevronRight, 
-  Sparkles,
-  Code,
-  PenTool,
-  BrainCircuit,
+import {
+  ArrowRight,
+  FileText,
+  Menu,
+  X,
+  ChevronRight,
+  Users,
+  Globe,
+  Shield,
   Zap,
+  Download,
   Mail,
   Github,
   Twitter,
-  Linkedin
-} from 'lucide-react';
-
+  Linkedin,
+  Info,
+  Target,
+  Layers,
+  Workflow
+} from "lucide-react";
 // Mock AI Chat Interface for Demo (non-authenticated users)
 function DemoAIChatInterface() {
   return (
     <div className="w-full max-w-4xl mx-auto h-[600px] bg-gradient-to-br from-slate-900 to-indigo-950 rounded-xl overflow-hidden shadow-2xl border border-indigo-500/20">
       <div className="bg-indigo-600/30 backdrop-blur-sm p-4 border-b border-indigo-500/30 flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <Sparkles className="text-indigo-300 h-5 w-5" />
-          <h2 className="text-white font-medium">PolyDoc AI Demo</h2>
+          <FileText className="text-indigo-300 h-5 w-5" />
+          <h2 className="text-white font-medium">PolyDoc Demo</h2>
         </div>
       </div>
       
       <div className="p-4 h-[calc(100%-200px)] overflow-y-auto bg-slate-900/50">
         <div className="flex flex-col items-center justify-center h-full text-center">
-          <Sparkles className="h-12 w-12 text-indigo-400 mb-4" />
-          <h3 className="text-indigo-200 text-xl mb-2">Welcome to PolyDoc AI</h3>
+          <FileText className="h-12 w-12 text-indigo-400 mb-4" />
+          <h3 className="text-indigo-200 text-xl mb-2">Welcome to PolyDoc</h3>
           <p className="text-slate-400 text-sm max-w-xs mb-6">
             Upload documents and ask questions about them. I support multiple languages and preserve document layouts!
           </p>
@@ -119,7 +108,7 @@ function GoogleSignInModal({ isOpen, onClose }) {
                 <div className="h-12 w-12 rounded-3xl overflow-hidden ring-2 ring-primary/20">
                   <img 
                     src="/default-avatar.svg" 
-                    alt="PolyDoc AI Logo" 
+                    alt="PolyDoc Logo"
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       // Fallback to icon if image fails to load
@@ -131,13 +120,13 @@ function GoogleSignInModal({ isOpen, onClose }) {
                     <FileText className="h-6 w-6 text-primary-foreground" />
                   </div>
                 </div>
-            <h2 className="text-2xl font-bold">PolyDoc AI</h2>
+            <h2 className="text-2xl font-bold">PolyDoc</h2>
           </div>
           
           <div className="space-y-4">
             <h3 className="text-xl font-semibold">Welcome Back!</h3>
             <p className="text-muted-foreground">
-              Sign in to access your documents and chat with AI about them.
+              Sign in to access your documents and start processing them.
             </p>
           </div>
 
@@ -180,12 +169,7 @@ export default function LandingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Initialize Lenis smooth scrolling
-  useLenis({
-    duration: 1.5,
-    easing: (t) => 1 - Math.pow(1 - t, 4), // Custom smooth easing
-    smooth: true
-  });
+  // Scroll handling
 
   useEffect(() => {
     const handleScroll = () => {
@@ -280,130 +264,95 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Scroll Progress Indicator */}
-      <ScrollProgress />
+    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300">
       
-      {/* Advanced Background Effects */}
-      <div className="absolute inset-0 overflow-hidden">
-        {/* Animated gradient mesh */}
-        <motion.div 
-          className="absolute inset-0 opacity-30"
-          style={{
-            background: `
-              radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-              radial-gradient(circle at 40% 80%, rgba(119, 198, 255, 0.3) 0%, transparent 50%)
-            `
-          }}
-          animate={{
-            scale: [1, 1.1, 1],
-            rotate: [0, 1, 0]
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-        
-        {/* Modern floating orbs */}
-        <FloatingOrb 
-          className="top-1/4 left-1/6 w-96 h-96"
-          color="from-cyan-500/20 to-blue-500/20"
-        />
-        <FloatingOrb 
-          className="bottom-1/4 right-1/6 w-80 h-80"
-          color="from-purple-500/20 to-pink-500/20"
-        />
-        <FloatingOrb 
-          className="top-3/4 left-3/4 w-64 h-64"
-          color="from-emerald-500/20 to-teal-500/20"
-        />
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 opacity-30 dark:opacity-10">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `radial-gradient(circle at 25% 25%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                           radial-gradient(circle at 75% 75%, rgba(168, 85, 247, 0.1) 0%, transparent 50%)`
+        }} />
       </div>
-      {/* Modern Glass Header */}
+      {/* Clean Modern Header */}
       <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        transition={{ duration: 0.6 }}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrollY > 50 
-            ? "bg-slate-900/80 backdrop-blur-xl border-b border-white/10" 
+            ? "bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-700 shadow-sm" 
             : "bg-transparent"
         }`}
       >
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            {/* Logo with magnetic effect */}
+            {/* Logo */}
             <motion.div 
               className="flex items-center space-x-3"
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.02 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
             >
               <motion.div
                 whileHover={{ rotate: 360 }}
                 transition={{ duration: 0.6 }}
-                className="w-10 h-10 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-500 flex items-center justify-center"
+                className="w-9 h-9 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center"
               >
-                <Sparkles className="w-5 h-5 text-white" />
+                <FileText className="w-5 h-5 text-white" />
               </motion.div>
-              <motion.span 
-                className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent"
-                whileHover={{
-                  backgroundImage: "linear-gradient(45deg, #06b6d4, #8b5cf6, #06b6d4)",
-                  backgroundSize: "200% 200%",
-                  backgroundPosition: "200% 0%"
-                }}
-                transition={{ duration: 0.8 }}
-              >
-                POLYDOC
-              </motion.span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                PolyDoc
+              </span>
             </motion.div>
 
-            {/* Navigation with magnetic buttons */}
-            <nav className="hidden lg:flex items-center space-x-8">
-              {["Features", "About", "Contact"].map((item, index) => (
-                <MagneticButton
+            {/* Navigation */}
+            <nav className="hidden lg:flex items-center space-x-6">
+              {["Features", "About"].map((item, index) => (
+                <motion.a
                   key={item}
-                  className="px-4 py-2 text-white/80 hover:text-white transition-colors duration-300"
-                  onClick={() => document.querySelector(`#${item.toLowerCase()}`)?.scrollIntoView({ behavior: 'smooth' })}
+                  href={`#${item.toLowerCase()}`}
+                  className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  whileHover={{ y: -1 }}
                 >
                   {item}
-                </MagneticButton>
+                </motion.a>
               ))}
             </nav>
 
             {/* CTA Buttons */}
-            <div className="flex items-center space-x-4">
-              <ThemeToggle className="rounded-2xl" />
+            <div className="flex items-center space-x-3">
+              <ThemeToggle />
               {!user ? (
                 <>
-                  <MagneticButton
-                    className="px-4 py-2 text-white/80 hover:text-white transition-colors"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400"
                     onClick={() => setShowSignInModal(true)}
                   >
                     Sign In
-                  </MagneticButton>
-                  <LiquidButton
-                    className="px-6 py-3 text-white font-medium"
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                     onClick={() => setShowSignInModal(true)}
                   >
                     Get Started
-                  </LiquidButton>
+                  </Button>
                 </>
               ) : (
-                <LiquidButton
-                  className="px-6 py-3 text-white font-medium"
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
                   onClick={() => navigate('/dashboard')}
                 >
                   Dashboard
-                </LiquidButton>
+                </Button>
               )}
             </div>
 
             {/* Mobile menu button */}
             <motion.button 
-              className="lg:hidden p-2 text-white"
+              className="lg:hidden p-2 text-gray-700 dark:text-gray-300"
               whileTap={{ scale: 0.95 }}
               onClick={toggleMenu}
             >
@@ -427,7 +376,7 @@ export default function LandingPage() {
                 <div className="h-10 w-10 rounded-3xl bg-primary flex items-center justify-center">
                   <FileText className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <span className="font-bold text-xl">PolyDoc AI</span>
+                <span className="font-bold text-xl">PolyDoc</span>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -444,7 +393,7 @@ export default function LandingPage() {
             animate="visible"
             className="container grid gap-3 pb-8 pt-6"
           >
-            {["Features", "About", "Contact"].map((item, index) => (
+            {["Features", "About"].map((item, index) => (
               <motion.div key={index} variants={itemFadeIn}>
                 <a
                   href={`#${item.toLowerCase()}`}
@@ -491,115 +440,125 @@ export default function LandingPage() {
             <div className="max-w-6xl mx-auto">
               
               {/* Badge */}
-              <TextReveal className="mb-8">
+              <motion.div 
+                className="mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+              >
                 <motion.div
-                  className="inline-flex items-center px-6 py-3 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-cyan-400 text-sm font-medium"
-                  whileHover={{ scale: 1.05, y: -2 }}
+                  className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm font-medium"
+                  whileHover={{ scale: 1.05 }}
                   transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Next-Gen Document Intelligence
+                  <FileText className="w-4 h-4 mr-2" />
+                  Document Intelligence Platform
                 </motion.div>
-              </TextReveal>
+              </motion.div>
 
-              {/* Main Heading with Split Text Animation */}
+              {/* Main Heading */}
               <div className="mb-8 space-y-4">
-                <TextReveal>
-                  <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tight">
-                    <span className="block bg-gradient-to-r from-white via-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                      POLYDOC
-                    </span>
-                  </h1>
-                </TextReveal>
+                <motion.h1 
+                  className="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight"
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.8 }}
+                >
+                  <span className="block bg-gradient-to-r from-gray-900 via-blue-600 to-purple-600 dark:from-white dark:via-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
+                    PolyDoc
+                  </span>
+                </motion.h1>
                 
-                <TextReveal delay={0.2}>
-                  <h2 className="text-2xl md:text-4xl lg:text-5xl font-light text-white/80 tracking-wide">
-                    AI Document Understanding
-                  </h2>
-                </TextReveal>
+                <motion.h2 
+                  className="text-xl md:text-3xl font-light text-gray-600 dark:text-gray-300 tracking-wide"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5, duration: 0.8 }}
+                >
+                  Intelligent Document Processing
+                </motion.h2>
 
-                <TextReveal delay={0.4}>
-                  <div className="w-32 h-1 bg-gradient-to-r from-cyan-500 to-purple-500 mx-auto rounded-full" />
-                </TextReveal>
+                <motion.div 
+                  className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full" 
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ delay: 0.7, duration: 0.8 }}
+                />
               </div>
 
               {/* Description */}
-              <TextReveal delay={0.6}>
-                <p className="text-xl md:text-2xl text-white/60 max-w-4xl mx-auto leading-relaxed mb-12">
-                  Revolutionary multi-lingual document processing with 
-                  <span className="text-cyan-400 font-medium"> layout preservation</span>, 
-                  <span className="text-purple-400 font-medium"> AI-powered analysis</span>, and 
-                  <span className="text-emerald-400 font-medium"> intelligent text extraction</span>.
-                </p>
-              </TextReveal>
+              <motion.p 
+                className="text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed mb-12"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8, duration: 0.8 }}
+              >
+                Advanced document processing platform with 
+                <span className="text-blue-600 dark:text-blue-400 font-medium"> multi-format support</span>, 
+                <span className="text-purple-600 dark:text-purple-400 font-medium"> intelligent extraction</span>, and 
+                <span className="text-green-600 dark:text-green-400 font-medium"> seamless workflows</span>.
+              </motion.p>
 
               {/* CTA Buttons */}
-              <TextReveal delay={0.8}>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                  <LiquidButton
-                    className="px-12 py-6 text-lg font-semibold bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-2xl shadow-2xl"
-                    onClick={() => setShowSignInModal(true)}
-                  >
-                    Start Processing
-                    <ArrowRight className="ml-3 w-5 h-5" />
-                  </LiquidButton>
-                  
-                  <MagneticButton
-                    className="px-12 py-6 text-lg font-medium text-white/80 border border-white/20 rounded-2xl backdrop-blur-xl"
-                    onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
-                  >
-                    Explore Features
-                  </MagneticButton>
-                </div>
-              </TextReveal>
+              <motion.div 
+                className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.0, duration: 0.8 }}
+              >
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all"
+                  onClick={() => setShowSignInModal(true)}
+                >
+                  Get Started
+                  <ArrowRight className="ml-2 w-4 h-4" />
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="px-8 py-3 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  onClick={() => document.querySelector('#features')?.scrollIntoView({ behavior: 'smooth' })}
+                >
+                  Learn More
+                </Button>
+              </motion.div>
 
               {/* Stats */}
-              <TextReveal delay={1}>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 max-w-4xl mx-auto">
-                  <div className="text-center">
-                    <div className="text-3xl md:text-4xl font-bold text-cyan-400 mb-2">
-                      <AnimatedCounter to={50} suffix="+" />
-                    </div>
-                    <div className="text-white/60 text-sm">Languages</div>
+              <motion.div 
+                className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 max-w-4xl mx-auto"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.2, duration: 0.8 }}
+              >
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400 mb-2">
+                    50+
                   </div>
-                  <div className="text-center">
-                    <div className="text-3xl md:text-4xl font-bold text-purple-400 mb-2">
-                      <AnimatedCounter to={99} suffix="%" />
-                    </div>
-                    <div className="text-white/60 text-sm">Accuracy</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl md:text-4xl font-bold text-emerald-400 mb-2">
-                      <AnimatedCounter to={1000} suffix="+" />
-                    </div>
-                    <div className="text-white/60 text-sm">Documents</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl md:text-4xl font-bold text-pink-400 mb-2">
-                      <AnimatedCounter to={24} suffix="/7" />
-                    </div>
-                    <div className="text-white/60 text-sm">Available</div>
-                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 text-sm">Languages</div>
                 </div>
-              </TextReveal>
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-purple-600 dark:text-purple-400 mb-2">
+                    99%
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 text-sm">Accuracy</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400 mb-2">
+                    1000+
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 text-sm">Documents</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl md:text-4xl font-bold text-orange-600 dark:text-orange-400 mb-2">
+                    24/7
+                  </div>
+                  <div className="text-gray-600 dark:text-gray-400 text-sm">Available</div>
+                </div>
+              </motion.div>
             </div>
           </div>
-
-          {/* 3D Logo - Floating in Background */}
-          <motion.div 
-            className="absolute right-10 top-1/2 -translate-y-1/2 w-96 h-96 opacity-20"
-            animate={{ 
-              y: [-20, 20, -20],
-              rotate: [0, 5, -5, 0]
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            <AnimatedLogo3D />
-          </motion.div>
 
           {/* Scroll Indicator */}
           <motion.div 
@@ -607,9 +566,9 @@ export default function LandingPage() {
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            <div className="w-6 h-10 border-2 border-white/30 rounded-full flex justify-center">
+            <div className="w-6 h-10 border-2 border-gray-400 dark:border-gray-600 rounded-full flex justify-center">
               <motion.div 
-                className="w-1 h-3 bg-white/60 rounded-full mt-2"
+                className="w-1 h-3 bg-gray-500 dark:bg-gray-400 rounded-full mt-2"
                 animate={{ scaleY: [1, 0.3, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
@@ -617,374 +576,272 @@ export default function LandingPage() {
           </motion.div>
         </section>
 
-        {/* Features Section - Modern Grid */}
-        <section id="features" className="py-32 relative overflow-hidden">
-          
-          {/* Section Background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-800/50 to-transparent" />
-          
-          <div className="container mx-auto px-6 relative z-10">
+        {/* Features Section */}
+        <section id="features" className="py-24 bg-gray-50 dark:bg-gray-800/50">
+          <div className="container mx-auto px-6">
             
             {/* Section Header */}
-            <div className="text-center mb-20">
-              <TextReveal>
-                <motion.div
-                  className="inline-flex items-center px-6 py-3 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 text-cyan-400 text-sm font-medium mb-8"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Advanced Capabilities
-                </motion.div>
-              </TextReveal>
+            <div className="text-center mb-16">
+              <motion.div
+                className="inline-flex items-center px-4 py-2 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400 text-sm font-medium mb-6"
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Key Features
+              </motion.div>
               
-              <TextReveal delay={0.2}>
-                <h2 className="text-5xl md:text-7xl font-black text-white mb-6">
-                  Powerful
-                  <span className="block bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent">
-                    Features
-                  </span>
-                </h2>
-              </TextReveal>
+              <motion.h2 
+                className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                Everything You Need for
+                <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Document Processing
+                </span>
+              </motion.h2>
               
-              <TextReveal delay={0.4}>
-                <p className="text-xl text-white/60 max-w-3xl mx-auto leading-relaxed">
-                  Revolutionary AI technology that transforms how you interact with documents, 
-                  preserving layouts while extracting intelligent insights.
-                </p>
-              </TextReveal>
+              <motion.p 
+                className="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto leading-relaxed"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                Advanced document processing platform with intelligent extraction,
+                multi-format support, and seamless workflow integration.
+              </motion.p>
             </div>
 
             {/* Features Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
               {[
                 {
-                  icon: <FileText className="h-8 w-8" />,
+                  icon: <FileText className="h-6 w-6" />,
                   title: "Multi-Format Support",
-                  description: "Process PDFs, Word docs, PowerPoint, and scanned images with unprecedented accuracy.",
-                  gradient: "from-cyan-500 to-blue-500",
-                  delay: 0
+                  description: "Process PDFs, Word docs, PowerPoint, and images with high accuracy.",
+                  color: "blue"
                 },
                 {
-                  icon: <Sparkles className="h-8 w-8" />,
-                  title: "Layout Preservation",
-                  description: "Maintain original document structure, formatting, and visual hierarchy perfectly.",
-                  gradient: "from-purple-500 to-pink-500",
-                  delay: 0.1
+                  icon: <Users className="h-6 w-6" />,
+                  title: "Collaborative Workflows",
+                  description: "Share documents and collaborate with your team in real-time.",
+                  color: "purple"
                 },
                 {
-                  icon: <Code className="h-8 w-8" />,
-                  title: "Multi-lingual Processing",
-                  description: "Support for 50+ languages with mixed-script document processing capabilities.",
-                  gradient: "from-emerald-500 to-teal-500",
-                  delay: 0.2
+                  icon: <Globe className="h-6 w-6" />,
+                  title: "Multi-Language Support",
+                  description: "Process documents in 50+ languages with intelligent recognition.",
+                  color: "green"
                 },
                 {
-                  icon: <PenTool className="h-8 w-8" />,
-                  title: "Handwriting Recognition",
-                  description: "Advanced OCR technology for handwritten documents with intelligent analysis.",
-                  gradient: "from-orange-500 to-red-500",
-                  delay: 0.3
+                  icon: <Shield className="h-6 w-6" />,
+                  title: "Secure Processing",
+                  description: "Enterprise-grade security with encrypted document handling.",
+                  color: "red"
                 },
                 {
-                  icon: <BrainCircuit className="h-8 w-8" />,
-                  title: "AI-Powered Analysis",
-                  description: "Leverage cutting-edge NLP and GenAI for intelligent content understanding.",
-                  gradient: "from-indigo-500 to-purple-500",
-                  delay: 0.4
+                  icon: <Zap className="h-6 w-6" />,
+                  title: "Fast Processing",
+                  description: "Lightning-fast document analysis with real-time results.",
+                  color: "yellow"
                 },
                 {
-                  icon: <Zap className="h-8 w-8" />,
-                  title: "Lightning Fast",
-                  description: "Real-time processing with instant results and comprehensive feedback systems.",
-                  gradient: "from-yellow-500 to-orange-500",
-                  delay: 0.5
+                  icon: <Download className="h-6 w-6" />,
+                  title: "Easy Export",
+                  description: "Export processed documents in multiple formats instantly.",
+                  color: "indigo"
                 }
               ].map((feature, index) => (
-                <TextReveal key={index} delay={feature.delay}>
-                  <ModernCard className="h-full group">
-                    {/* Feature Icon */}
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                      <div className="text-white">
-                        {feature.icon}
-                      </div>
+                <motion.div 
+                  key={index}
+                  className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 group"
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  whileHover={{ y: -5 }}
+                >
+                  {/* Feature Icon */}
+                  <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 ${
+                    feature.color === 'blue' ? 'bg-blue-100 dark:bg-blue-900/20' :
+                    feature.color === 'purple' ? 'bg-purple-100 dark:bg-purple-900/20' :
+                    feature.color === 'green' ? 'bg-green-100 dark:bg-green-900/20' :
+                    feature.color === 'red' ? 'bg-red-100 dark:bg-red-900/20' :
+                    feature.color === 'yellow' ? 'bg-yellow-100 dark:bg-yellow-900/20' :
+                    'bg-indigo-100 dark:bg-indigo-900/20'
+                  }`}>
+                    <div className={`${
+                      feature.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+                      feature.color === 'purple' ? 'text-purple-600 dark:text-purple-400' :
+                      feature.color === 'green' ? 'text-green-600 dark:text-green-400' :
+                      feature.color === 'red' ? 'text-red-600 dark:text-red-400' :
+                      feature.color === 'yellow' ? 'text-yellow-600 dark:text-yellow-400' :
+                      'text-indigo-600 dark:text-indigo-400'
+                    }`}>
+                      {feature.icon}
                     </div>
-                    
-                    {/* Feature Content */}
-                    <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-cyan-400 transition-colors">
-                      {feature.title}
-                    </h3>
-                    
-                    <p className="text-white/60 leading-relaxed group-hover:text-white/80 transition-colors">
-                      {feature.description}
-                    </p>
-                    
-                    {/* Hover Arrow */}
-                    <motion.div
-                      className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      initial={{ x: -10 }}
-                      whileHover={{ x: 0 }}
-                    >
-                      <ArrowRight className="w-5 h-5 text-cyan-400" />
-                    </motion.div>
-                  </ModernCard>
-                </TextReveal>
+                  </div>
+                  
+                  {/* Feature Content */}
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+                    {feature.title}
+                  </h3>
+                  
+                  <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </motion.div>
               ))}
             </div>
 
             {/* Bottom CTA */}
-            <TextReveal delay={0.8}>
-              <div className="text-center mt-20">
-                <LiquidButton
-                  className="px-8 py-4 text-lg font-medium"
-                  onClick={() => setShowSignInModal(true)}
-                >
-                  Experience All Features
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </LiquidButton>
-              </div>
-            </TextReveal>
+            <motion.div 
+              className="text-center mt-16"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+            >
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3"
+                onClick={() => setShowSignInModal(true)}
+              >
+                Try All Features
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </motion.div>
           </div>
         </section>
 
-        {/* Demo Section */}
-        <section id="demo" className="w-full py-12 md:py-24 lg:py-32">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeIn}
-            className="container px-4 md:px-6 border border-muted rounded-3xl bg-muted/10"
-          >
-            <div className="flex flex-col items-center justify-center space-y-4 text-center py-10">
-              <div className="space-y-3">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
-                  className="inline-block rounded-3xl bg-muted px-3 py-1 text-sm"
-                >
-                  Interactive Demo
-                </motion.div>
-                <motion.h2
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
-                  className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl"
-                >
-                  Try PolyDoc AI
-                </motion.h2>
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="mx-auto max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed"
-                >
-                  Sign in with Google to upload documents and experience the power of intelligent document processing
-                </motion.p>
-              </div>
+        {/* About Section */}
+        <section id="about" className="py-24">
+          <div className="container mx-auto px-6">
+            <div className="max-w-4xl mx-auto text-center">
+              <motion.div
+                className="inline-flex items-center px-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-sm font-medium mb-6"
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+              >
+                <Info className="w-4 h-4 mr-2" />
+                About PolyDoc
+              </motion.div>
+              
+              <motion.h2 
+                className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                Transforming Document Processing
+              </motion.h2>
+              
+              <motion.p 
+                className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                PolyDoc is a modern document intelligence platform that combines advanced OCR technology
+                with intelligent analysis capabilities. Our platform supports multiple document formats,
+                preserves original layouts, and provides accurate text extraction with comprehensive
+                multilingual support.
+              </motion.p>
+              
+              <motion.div 
+                className="grid md:grid-cols-3 gap-8 mt-12"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Target className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Accuracy First</h3>
+                  <p className="text-gray-600 dark:text-gray-400">High-precision document processing with 99% accuracy rates</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Layers className="w-8 h-8 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Format Support</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Process PDFs, images, Word docs, and more seamlessly</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Workflow className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Easy Integration</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Simple API and web interface for seamless workflows</p>
+                </div>
+              </motion.div>
             </div>
-            <div className="flex justify-center py-12">
-              <DemoAIChatInterface />
-            </div>
-          </motion.div>
-        </section>
-
-        {/* Contact Section */}
-        <section id="contact" className="w-full py-12 md:py-24 lg:py-32">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeIn}
-            className="container grid items-center gap-3 px-4 md:px-6 lg:grid-cols-2 border border-muted rounded-3xl"
-          >
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="space-y-3 p-6"
-            >
-              <div className="inline-block rounded-3xl bg-muted px-3 py-1 text-sm">Contact</div>
-              <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">Get Started with PolyDoc AI</h2>
-              <p className="max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Ready to transform your document processing workflow? Contact us to learn more about PolyDoc AI.
-              </p>
-              <div className="mt-8 space-y-4">
-                <motion.div whileHover={{ x: 5 }} className="flex items-start gap-3">
-                  <div className="rounded-3xl bg-muted p-2">
-                    <Mail className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Email Us</h3>
-                    <p className="text-sm text-muted-foreground">contact@polydocai.com</p>
-                  </div>
-                </motion.div>
-                <motion.div whileHover={{ x: 5 }} className="flex items-start gap-3">
-                  <div className="rounded-3xl bg-muted p-2">
-                    <Github className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Open Source</h3>
-                    <p className="text-sm text-muted-foreground">Built with Python, NLP & GenAI</p>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="rounded-3xl border bg-background p-6 shadow-sm"
-            >
-              <h3 className="text-xl font-bold">Get in Touch</h3>
-              <p className="text-sm text-muted-foreground">
-                Send us a message and we'll get back to you shortly.
-              </p>
-              <form className="mt-6 space-y-3">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="first-name"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      First name
-                    </label>
-                    <Input id="first-name" placeholder="Enter your first name" className="rounded-3xl" />
-                  </div>
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="last-name"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      Last name
-                    </label>
-                    <Input id="last-name" placeholder="Enter your last name" className="rounded-3xl" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label
-                    htmlFor="email"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Email
-                  </label>
-                  <Input id="email" type="email" placeholder="Enter your email" className="rounded-3xl" />
-                </div>
-                <div className="space-y-2">
-                  <label
-                    htmlFor="message"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Message
-                  </label>
-                  <Textarea id="message" placeholder="Tell us about your document processing needs" className="min-h-[120px] rounded-3xl" />
-                </div>
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                  <Button type="submit" className="w-full rounded-3xl">
-                    Send Message
-                  </Button>
-                </motion.div>
-              </form>
-            </motion.div>
-          </motion.div>
+          </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer className="w-full border-t">
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeIn}
-          className="container grid gap-3 px-4 py-10 md:px-6 lg:grid-cols-4 border-x border-muted"
-        >
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <motion.div
-                whileHover={{ rotate: 5, scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                className="h-10 w-10 rounded-3xl bg-primary flex items-center justify-center"
-              >
-                <FileText className="h-5 w-5 text-primary-foreground" />
-              </motion.div>
-              <span className="font-bold text-xl">PolyDoc AI</span>
+      <footer className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-6 py-12">
+          <div className="grid md:grid-cols-4 gap-8">
+            {/* Brand */}
+            <div className="col-span-2">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-bold text-xl text-gray-900 dark:text-white">PolyDoc</span>
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md">
+                Modern document processing platform with intelligent extraction,
+                multi-format support, and seamless workflow integration.
+              </p>
+              <div className="flex space-x-4">
+                <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  <Github className="w-5 h-5" />
+                </a>
+                <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  <Twitter className="w-5 h-5" />
+                </a>
+                <a href="#" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                  <Linkedin className="w-5 h-5" />
+                </a>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Intelligent multi-lingual document understanding with layout preservation using advanced AI technology.
-            </p>
-            <div className="flex space-x-3">
-              {[
-                { icon: <Github className="h-5 w-5" />, label: "GitHub" },
-                { icon: <Twitter className="h-5 w-5" />, label: "Twitter" },
-                { icon: <Linkedin className="h-5 w-5" />, label: "LinkedIn" },
-              ].map((social, index) => (
-                <motion.div key={index} whileHover={{ y: -5, scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                  <a href="#" className="text-muted-foreground hover:text-foreground">
-                    {social.icon}
-                    <span className="sr-only">{social.label}</span>
-                  </a>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            
+            {/* Product */}
             <div>
-              <h3 className="text-lg font-medium">Product</h3>
-              <nav className="mt-4 flex flex-col space-y-2 text-sm">
-                <a href="#features" className="text-muted-foreground hover:text-foreground">
-                  Features
-                </a>
-                <a href="#demo" className="text-muted-foreground hover:text-foreground">
-                  Demo
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">
-                  API Documentation
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">
-                  Pricing
-                </a>
-              </nav>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Product</h3>
+              <ul className="space-y-2">
+                <li><a href="#features" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">Features</a></li>
+                <li><a href="#about" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">About</a></li>
+                <li><a href="#" className="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">Documentation</a></li>
+              </ul>
             </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            
+            {/* Technology */}
             <div>
-              <h3 className="text-lg font-medium">Technology</h3>
-              <nav className="mt-4 flex flex-col space-y-2 text-sm">
-                <a href="#" className="text-muted-foreground hover:text-foreground">
-                  Python & NLP
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">
-                  GenAI Models
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">
-                  OCR Technology
-                </a>
-                <a href="#" className="text-muted-foreground hover:text-foreground">
-                  Open Source
-                </a>
-              </nav>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Technology</h3>
+              <ul className="space-y-2">
+                <li><span className="text-gray-600 dark:text-gray-400">Python & NLP</span></li>
+                <li><span className="text-gray-600 dark:text-gray-400">OCR Technology</span></li>
+                <li><span className="text-gray-600 dark:text-gray-400">Open Source</span></li>
+              </ul>
             </div>
           </div>
-          <div className="space-y-3">
-            <h3 className="text-lg font-medium">Stay Updated</h3>
-            <p className="text-sm text-muted-foreground">
-              Get the latest updates on PolyDoc AI features and improvements.
+          
+          <div className="border-t border-gray-200 dark:border-gray-700 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              &copy; {new Date().getFullYear()} PolyDoc. All rights reserved.
             </p>
-            <form className="flex space-x-3">
-              <Input type="email" placeholder="Enter your email" className="max-w-lg flex-1 rounded-3xl" />
-              <Button type="submit" className="rounded-3xl">
-                Subscribe
-              </Button>
-            </form>
-          </div>
-        </motion.div>
-        <div className="border-t">
-          <div className="container flex flex-col items-center justify-between gap-3 py-6 md:h-16 md:flex-row md:py-0">
-            <p className="text-xs text-muted-foreground">
-              &copy; {new Date().getFullYear()} PolyDoc AI. All rights reserved.
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 md:mt-0">
+              Built with modern web technologies
             </p>
-            <p className="text-xs text-muted-foreground">Built with Python, NLP & GenAI</p>
           </div>
         </div>
       </footer>

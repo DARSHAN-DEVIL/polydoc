@@ -1,1053 +1,464 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FileUp, 
-  Paperclip, 
-  X, 
-  CornerRightUp, 
-  Sparkles,
-  ArrowLeft,
+  FileText,
+  Upload,
+  MessageSquare,
+  Settings,
+  LogOut,
+  Home,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  X,
+  Plus,
   Download,
-  Share2
+  Trash2,
+  User,
+  Search,
+  Filter,
+  MoreHorizontal
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { UserProfile } from '@/components/ui/user-profile';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { useLenis } from '@/hooks/useLenis';
-import FloatingParticles from '@/components/FloatingParticles';
 
-// File Display Component
-function FileDisplay({ fileName, onClear }) {
-  return (
-    <div className="flex items-center gap-2 bg-black/5 dark:bg-white/5 w-fit px-3 py-1 rounded-lg group border dark:border-white/10">
-      <FileUp className="w-4 h-4 dark:text-white" />
-      <span className="text-sm dark:text-white">{fileName}</span>
-      <button
-        type="button"
-        onClick={onClear}
-        className="ml-1 p-0.5 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-      >
-        <X className="w-3 h-3 dark:text-white" />
-      </button>
-    </div>
-  );
-}
+// Upload Component
+function UploadZone({ onUpload, isUploading }) {
+  const fileInputRef = useRef();
+  const [dragActive, setDragActive] = useState(false);
 
-// Custom hooks (same as before)
-function useAutoResizeTextarea({ minHeight, maxHeight }) {
-  const textareaRef = useRef(null);
-
-  const adjustHeight = (reset) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    if (reset) {
-      textarea.style.height = `${minHeight}px`;
-      return;
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-
-    textarea.style.height = `${minHeight}px`;
-    const newHeight = Math.max(
-      minHeight,
-      Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY)
-    );
-    textarea.style.height = `${newHeight}px`;
   };
 
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = `${minHeight}px`;
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      onUpload(files[0]);
     }
-  }, [minHeight]);
-
-  useEffect(() => {
-    const handleResize = () => adjustHeight();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  return { textareaRef, adjustHeight };
-}
-
-function useFileInput({ accept, maxSize }) {
-  const [fileName, setFileName] = useState("");
-  const [error, setError] = useState("");
-  const fileInputRef = useRef(null);
-  const [selectedFile, setSelectedFile] = useState();
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
-    validateAndSetFile(file);
-  };
-
-  const validateAndSetFile = (file) => {
-    setError("");
-
     if (file) {
-      if (maxSize && file.size > maxSize * 1024 * 1024) {
-        setError(`File size must be less than ${maxSize}MB`);
-        return;
-      }
+      onUpload(file);
+    }
+  };
 
-      // Check file extension instead of MIME type for better compatibility
-      const fileExtension = file.name.toLowerCase().split('.').pop();
-      const allowedExtensions = ['pdf', 'doc', 'docx', 'txt', 'png', 'jpg', 'jpeg', 'tiff', 'bmp'];
+  return (
+    <motion.div
+      className={cn(
+        "relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300",
+        dragActive 
+          ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20" 
+          : "border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500"
+      )}
+      onDragEnter={handleDrag}
+      onDragLeave={handleDrag}
+      onDragOver={handleDrag}
+      onDrop={handleDrop}
+      whileHover={{ scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+        onChange={handleFileSelect}
+        disabled={isUploading}
+      />
       
-      if (!allowedExtensions.includes(fileExtension)) {
-        setError(`File type must be one of: ${allowedExtensions.join(', ')}`);
-        return;
-      }
-
-      setSelectedFile(file);
-      setFileName(file.name);
-    }
-  };
-
-  const clearFile = () => {
-    setFileName("");
-    setError("");
-    setSelectedFile(undefined);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  return {
-    fileName,
-    error,
-    fileInputRef,
-    handleFileSelect,
-    validateAndSetFile,
-    clearFile,
-    selectedFile,
-  };
+      <motion.div
+        className="flex flex-col items-center space-y-4"
+        animate={isUploading ? { opacity: 0.6 } : { opacity: 1 }}
+      >
+        <div className="w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+          {isUploading ? (
+            <motion.div
+              className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            />
+          ) : (
+            <Upload className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          )}
+        </div>
+        
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            {isUploading ? "Uploading..." : "Upload Document"}
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+            Drag and drop a file here, or click to browse
+          </p>
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <FileUp className="w-4 h-4 mr-2" />
+            Choose File
+          </Button>
+        </div>
+        
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Supports: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG (max 10MB)
+        </p>
+      </motion.div>
+    </motion.div>
+  );
 }
 
-// Upload Input Component - now supports both upload-only and full modes
-function UploadInput({
-  id = "upload-input",
-  placeholder = "Upload documents and ask questions about them...",
-  minHeight = 52,
-  maxHeight = 200,
-  accept = ".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg",
-  maxFileSize = 10,
-  onSubmit,
-  className,
-  uploadOnly = false, // New prop to control upload-only mode
-  disabled = false // New prop to disable upload
-}) {
-  const [inputValue, setInputValue] = useState("");
-  const { fileName, fileInputRef, handleFileSelect, clearFile, selectedFile, error } =
-    useFileInput({ accept, maxSize: maxFileSize });
+// Document Card Component
+function DocumentCard({ document, onDelete }) {
+  const [showMenu, setShowMenu] = useState(false);
 
-  const { textareaRef, adjustHeight } = useAutoResizeTextarea({
-    minHeight,
-    maxHeight,
-  });
-
-  const handleSubmit = () => {
-    if (uploadOnly && selectedFile) {
-      onSubmit?.("", selectedFile);
-      clearFile();
-    } else if (!uploadOnly && (inputValue.trim() || selectedFile)) {
-      onSubmit?.(inputValue, selectedFile);
-      setInputValue("");
-      adjustHeight(true);
-      clearFile();
-    }
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Upload-only interface
-  if (uploadOnly) {
-    return (
-      <div className={cn("w-full py-2 sm:py-4 px-2 sm:px-0", className)}>
-        <div className="relative max-w-2xl w-full mx-auto flex flex-col gap-4">
-          {fileName && <FileDisplay fileName={fileName} onClear={clearFile} />}
-          
-          {error && (
-            <div className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-              {error}
-            </div>
-          )}
-          
-          <div className="flex flex-col gap-3">
-            <Button
-              onClick={() => !disabled && fileInputRef.current?.click()}
-              className={cn(
-                "w-full py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-2xl",
-                disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
-              )}
-              variant="outline"
-              disabled={disabled}
-            >
-              <FileUp className="w-6 h-6 mr-3" />
-              <span className="text-base">
-                {disabled ? "System initializing..." : "Click to upload document"}
-              </span>
-            </Button>
-            
-            <input
-              type="file"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept={accept}
-              disabled={disabled}
-            />
-            
-            {selectedFile && (
-              <Button
-                onClick={handleSubmit}
-                className="w-full py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-2xl"
-                disabled={disabled}
-              >
-                <FileUp className="w-4 h-4 mr-2" />
-                Upload {selectedFile.name}
-              </Button>
-            )}
-          </div>
-          
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Supports: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG (max {maxFileSize}MB)
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
 
-  // Original full interface with text input and upload
   return (
-    <div className={cn("w-full py-2 sm:py-4 px-2 sm:px-0", className)}>
-      <div className="relative max-w-2xl w-full mx-auto flex flex-col gap-2">
-        {fileName && <FileDisplay fileName={fileName} onClear={clearFile} />}
+    <motion.div
+      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-all duration-200"
+      whileHover={{ y: -2 }}
+      layout
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[200px]">
+              {document.filename || document.name}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {formatFileSize(document.size)} • {formatDate(document.upload_date)}
+            </p>
+          </div>
+        </div>
         
-        {error && (
-          <div className="text-red-500 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
-            {error}
-          </div>
-        )}
-
         <div className="relative">
-          <div
-            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 flex items-center justify-center h-7 sm:h-8 w-7 sm:w-8 rounded-lg bg-black/5 dark:bg-white/5 hover:cursor-pointer"
-            onClick={() => fileInputRef.current?.click()}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowMenu(!showMenu)}
+            className="h-8 w-8 p-0"
           >
-            <Paperclip className="w-3.5 sm:w-4 h-3.5 sm:h-4 transition-opacity transform scale-x-[-1] rotate-45 dark:text-white" />
-          </div>
-
-          <input
-            type="file"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-            accept={accept}
-          />
-
-          <Textarea
-            id={id}
-            placeholder={placeholder}
-            className={cn(
-              "max-w-2xl bg-black/5 dark:bg-white/5 w-full rounded-2xl sm:rounded-3xl pl-10 sm:pl-12 pr-12 sm:pr-16",
-              "placeholder:text-black/70 dark:placeholder:text-white/70",
-              "border-none ring-black/30 dark:ring-white/30",
-              "text-black dark:text-white text-wrap py-3 sm:py-4",
-              "text-sm sm:text-base",
-              "max-h-[200px] overflow-y-auto resize-none leading-[1.2]",
-              `min-h-[${minHeight}px]`
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+          
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 z-10"
+              >
+                <div className="py-1">
+                  <button className="w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center">
+                    <Download className="w-4 h-4 mr-2" />
+                    Download
+                  </button>
+                  <button 
+                    onClick={() => onDelete(document._id)}
+                    className="w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </button>
+                </div>
+              </motion.div>
             )}
-            ref={textareaRef}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              adjustHeight();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-          />
-
-          <button
-            onClick={handleSubmit}
-            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 rounded-xl bg-black/5 dark:bg-white/5 py-1 px-1"
-            type="button"
-          >
-            <CornerRightUp
-              className={cn(
-                "w-3.5 sm:w-4 h-3.5 sm:h-4 transition-opacity dark:text-white",
-                (inputValue || selectedFile) ? "opacity-100" : "opacity-30"
-              )}
-            />
-          </button>
+          </AnimatePresence>
         </div>
       </div>
-    </div>
+      
+      {document.processed && (
+        <div className="flex items-center space-x-2 mb-2">
+          <CheckCircle className="w-4 h-4 text-green-500" />
+          <span className="text-xs text-green-600 dark:text-green-400">Processed</span>
+        </div>
+      )}
+      
+      {document.summary && (
+        <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
+          {document.summary}
+        </p>
+      )}
+    </motion.div>
   );
 }
 
 // Main Dashboard Component
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [messages, setMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState(null);
+  const [documents, setDocuments] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [documentSummaryComplete, setDocumentSummaryComplete] = useState(false);
-  const [systemReady, setSystemReady] = useState(false);
-  const [initializationStatus, setInitializationStatus] = useState(null);
-  const [recentDocuments, setRecentDocuments] = useState([]);
-  const [loadingRecent, setLoadingRecent] = useState(false);
-  const messagesEndRef = useRef(null);
-  
-  // Initialize Lenis smooth scrolling
-  useLenis({
-    duration: 1.2,
-    easing: (t) => 1 - Math.pow(1 - t, 3),
-    smooth: true
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState('all'); // all, processed, recent
+  const [loading, setLoading] = useState(true);
+
+  // Mock data for demonstration
+  useEffect(() => {
+    // Simulate API call
+    setTimeout(() => {
+      setDocuments([
+        {
+          _id: '1',
+          filename: 'Contract_Agreement.pdf',
+          size: 1048576,
+          upload_date: '2024-01-15T10:30:00Z',
+          processed: true,
+          summary: 'Legal contract document containing terms and conditions for service agreement...'
+        },
+        {
+          _id: '2', 
+          filename: 'Financial_Report_Q4.docx',
+          size: 2097152,
+          upload_date: '2024-01-14T15:45:00Z',
+          processed: true,
+          summary: 'Quarterly financial report showing revenue growth and market analysis...'
+        },
+        {
+          _id: '3',
+          filename: 'Meeting_Notes.txt',
+          size: 524288,
+          upload_date: '2024-01-13T09:20:00Z',
+          processed: false
+        }
+      ]);
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  const handleUpload = async (file) => {
+    setIsUploading(true);
+    // Simulate upload process
+    setTimeout(() => {
+      const newDocument = {
+        _id: Date.now().toString(),
+        filename: file.name,
+        size: file.size,
+        upload_date: new Date().toISOString(),
+        processed: false
+      };
+      setDocuments(prev => [newDocument, ...prev]);
+      setIsUploading(false);
+    }, 2000);
+  };
+
+  const handleDeleteDocument = (documentId) => {
+    setDocuments(prev => prev.filter(doc => doc._id !== documentId));
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Sign out failed:', error);
+    }
+  };
+
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = doc.filename.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filter === 'all' || 
+      (filter === 'processed' && doc.processed) ||
+      (filter === 'recent' && new Date(doc.upload_date) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    
+    return matchesSearch && matchesFilter;
   });
 
-  // Check backend initialization status
-  const checkSystemStatus = async () => {
-    try {
-      // Use absolute URL for backend health check
-      const currentPort = window.location.port || '80';
-      const backendUrl = `http://localhost:8000`; // Always use port 8000 for backend
-      const healthUrl = `${backendUrl}/health`;
-      
-      console.log(`Frontend port: ${currentPort}, Backend URL: ${backendUrl}`);
-      
-      console.log('Checking system status at:', healthUrl);
-      
-      const response = await fetch(healthUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        // Add timeout
-        signal: AbortSignal.timeout(10000) // 10 second timeout
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Backend responded with status ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('Backend health check result:', result);
-      
-      // Check both possible locations for models_ready flag
-      const modelsReady = result.initialization?.models_ready || result.models_ready || false;
-      const isHealthy = result.status === 'healthy';
-      const initStatus = result.initialization?.status;
-      
-      console.log('System status details:', {
-        isHealthy,
-        modelsReady,
-        initStatus,
-        initProgress: result.initialization?.progress
-      });
-      
-      // System is ready if healthy and models are ready OR initialization status is 'ready'
-      const systemIsReady = isHealthy && (modelsReady || initStatus === 'ready');
-      setSystemReady(systemIsReady);
-      
-      console.log('Final system readiness decision:', {
-        isHealthy,
-        modelsReady,
-        initStatus,
-        systemIsReady
-      });
-      
-      if (!isHealthy) {
-        setInitializationStatus('Backend is not healthy');
-      } else if (!systemIsReady) {
-        // If system is healthy but not ready, check initialization details
-        const initDetails = result.initialization;
-        if (initDetails?.status === 'error') {
-          setInitializationStatus(`Initialization failed: ${initDetails.error || 'Unknown error'}`);
-        } else if (initDetails?.status === 'ready') {
-          setInitializationStatus(null); // System is actually ready
-        } else {
-          setInitializationStatus(initDetails?.message || 'Models are still loading...');
-        }
-      } else {
-        setInitializationStatus(null); // System is ready
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('System status check failed:', error);
-      setSystemReady(false);
-      
-      if (error.name === 'AbortError' || error.name === 'TimeoutError') {
-        setInitializationStatus('Backend connection timeout - please ensure the backend server is running on port 8000');
-      } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-        setInitializationStatus('Cannot connect to backend - please ensure the backend server is running on port 8000');
-      } else {
-        setInitializationStatus(`Backend error: ${error.message}`);
-      }
-      
-      return null;
-    }
-  };
-
-  // Fetch recent documents
-  const fetchRecentDocuments = async () => {
-    if (!user?.uid) return;
-    
-    setLoadingRecent(true);
-    try {
-      const backendUrl = 'http://localhost:8000';
-      const documentsUrl = `${backendUrl}/documents`;
-      
-      const response = await fetch(documentsUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'user-id': user.uid
-        },
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        setRecentDocuments(result.documents || []);
-      } else {
-        console.error('Failed to fetch recent documents:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error fetching recent documents:', error);
-    } finally {
-      setLoadingRecent(false);
-    }
-  };
-
-  // API Functions
-  const uploadDocument = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    try {
-      // Always use localhost:8000 for backend
-      const backendUrl = 'http://localhost:8000';
-      const uploadUrl = `${backendUrl}/upload`;
-      
-      console.log('Uploading document to:', uploadUrl);
-      
-      const response = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'user-id': user?.uid || 'anonymous'
-        },
-        body: formData,
-      });
-      
-      if (response.status === 503) {
-        throw new Error('System is still initializing. Please wait a moment and try again.');
-      }
-      
-      if (!response.ok) {
-        console.log(`HTTP Error: ${response.status} ${response.statusText}`);
-        let errorMessage = `Upload failed: ${response.statusText} (${response.status})`;
-        
-        try {
-          const errorData = await response.json();
-          console.log('Raw backend error response:', errorData);
-          console.log('Error data type:', typeof errorData);
-          console.log('Error data stringified:', JSON.stringify(errorData, null, 2));
-          
-          // Try different ways to extract the error message
-          if (typeof errorData === 'string') {
-            errorMessage = errorData;
-          } else if (errorData && typeof errorData === 'object') {
-            if (errorData.detail) {
-              errorMessage = Array.isArray(errorData.detail) 
-                ? errorData.detail.map(d => typeof d === 'object' ? JSON.stringify(d) : d).join(', ')
-                : String(errorData.detail);
-            } else if (errorData.message) {
-              errorMessage = String(errorData.message);
-            } else if (errorData.error) {
-              errorMessage = String(errorData.error);
-            } else {
-              // If it's an object but no standard error fields, stringify the whole thing
-              errorMessage = `Upload failed (${response.status}): ` + JSON.stringify(errorData, null, 2);
-            }
-          } else {
-            errorMessage = `Upload failed: ${response.statusText} (${response.status}) - Could not parse error response`;
-          }
-        } catch (parseError) {
-          console.log('Failed to parse error response:', parseError);
-          // Try to get response as text if JSON parsing fails
-          try {
-            const errorText = await response.text();
-            console.log('Error response as text:', errorText);
-            errorMessage = `Upload failed (${response.status}): ${errorText || response.statusText}`;
-          } catch (textError) {
-            errorMessage = `Upload failed: ${response.statusText} (${response.status}) - Could not read error response`;
-          }
-        }
-        
-        console.log('Final error message:', errorMessage);
-        throw new Error(errorMessage);
-      }
-      
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Upload error:', error);
-      throw error;
-    }
-  };
-  
-  const sendChatMessage = async (message, documentId = null) => {
-    try {
-      // Always use localhost:8000 for backend
-      const backendUrl = 'http://localhost:8000';
-      const chatUrl = `${backendUrl}/chat`;
-      
-      console.log('Sending chat message to:', chatUrl);
-      
-      const response = await fetch(chatUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'user-id': user?.uid || 'anonymous'
-        },
-        body: JSON.stringify({
-          message,
-          user_id: user?.uid || 'anonymous',
-          document_id: documentId,
-          language: 'en'
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Chat failed: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Chat error:', error);
-      throw error;
-    }
-  };
-
-  const handleSubmit = async (message, file) => {
-    if (message.trim() === "" && !file) return;
-    
-    // BYPASS MODE: Allow upload even when backend is not responding for testing
-    // This will show proper error messages but won't block the upload attempt
-    console.log('Upload attempt with systemReady:', systemReady);
-    
-    // Handle file upload
-    if (file) {
-      setIsUploading(true);
-      try {
-        // Check system status right before upload
-        await checkSystemStatus();
-        
-        // Add upload message with progress
-        const uploadMessage = `Uploading document: ${file.name}`;
-        setMessages((prev) => [...prev, { 
-          text: uploadMessage, 
-          isUser: true, 
-          timestamp: new Date() 
-        }]);
-        
-        // Simulate upload progress
-        const progressInterval = setInterval(() => {
-          setUploadProgress(prev => {
-            if (prev >= 90) {
-              clearInterval(progressInterval);
-              return 90;
-            }
-            return prev + Math.random() * 20;
-          });
-        }, 500);
-        
-        // Upload the document
-        const uploadResult = await uploadDocument(file);
-        
-        // Complete progress
-        clearInterval(progressInterval);
-        setUploadProgress(100);
-        setCurrentDocument({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          lastModified: file.lastModified,
-          document_id: uploadResult.document_id,
-          summary: uploadResult.summary,
-          statistics: uploadResult.statistics,
-          filename: uploadResult.filename
-        });
-        
-        // Add success message
-        const successMessage = `✅ Document uploaded successfully!\n\nSummary: ${uploadResult.summary || 'Document processed successfully.'}`;
-        setMessages((prev) => [...prev, { 
-          text: successMessage, 
-          isUser: false, 
-          timestamp: new Date() 
-        }]);
-        
-        // If there's a message, send it as chat
-        if (message.trim()) {
-          await handleChatMessage(message, uploadResult.document_id);
-        }
-        
-        // Refresh recent documents after successful upload
-        await fetchRecentDocuments();
-      } catch (error) {
-        let errorMessage = `❌ Upload failed: ${error.message}`;
-        
-        // Check for specific backend issues and provide helpful messages
-        if (error.message.includes('database must be an instance of Database')) {
-          errorMessage = `❌ Upload failed: Backend database configuration error. The backend server needs to be restarted or reconfigured.\n\nTechnical details: ${error.message}`;
-        } else if (error.message.includes('500') && error.message.includes('Internal Server Error')) {
-          errorMessage = `❌ Upload failed: Internal server error. Please check if the backend server is properly configured and running.\n\nTechnical details: ${error.message}`;
-        }
-        
-        setMessages((prev) => [...prev, { 
-          text: errorMessage, 
-          isUser: false, 
-          timestamp: new Date() 
-        }]);
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0); // Reset progress
-      }
-    } else if (message.trim()) {
-      // Handle chat message only
-      const documentId = currentDocument?.document_id || null;
-      await handleChatMessage(message, documentId);
-    }
-  };
-  
-  const handleChatMessage = async (message, documentId) => {
-    // Add user message
-    setMessages((prev) => [...prev, { 
-      text: message, 
-      isUser: true, 
-      timestamp: new Date() 
-    }]);
-    
-    setIsTyping(true);
-    
-    try {
-      const chatResult = await sendChatMessage(message, documentId);
-      
-      // Add AI response
-      setMessages((prev) => [...prev, { 
-        text: chatResult.response, 
-        isUser: false, 
-        timestamp: new Date(),
-        confidence: chatResult.confidence,
-        sources: chatResult.sources 
-      }]);
-    } catch (error) {
-      const errorMessage = `❌ Error: ${error.message}`;
-      setMessages((prev) => [...prev, { 
-        text: errorMessage, 
-        isUser: false, 
-        timestamp: new Date() 
-      }]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const clearChat = () => {
-    setMessages([]);
-    setCurrentDocument(null);
-  };
-  
-  const handleDownload = async () => {
-    if (!currentDocument) return;
-    
-    try {
-      // Create a simple text file with document info
-      const documentInfo = {
-        name: currentDocument.name,
-        size: currentDocument.size,
-        uploadDate: new Date().toISOString(),
-        summary: currentDocument.summary,
-        statistics: currentDocument.statistics
-      };
-      
-      const content = `Document Information:
-
-Name: ${documentInfo.name}
-Size: ${(documentInfo.size / 1024 / 1024).toFixed(2)} MB
-Uploaded: ${new Date(documentInfo.uploadDate).toLocaleString()}
-
-Summary:
-${documentInfo.summary || 'No summary available'}
-
-Statistics:
-${JSON.stringify(documentInfo.statistics, null, 2)}`;
-      
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${currentDocument.name}-info.txt`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Download error:', error);
-    }
-  };
-  
-  const handleShare = async () => {
-    if (!currentDocument) return;
-    
-    try {
-      const shareText = `I just processed "${currentDocument.name}" with PolyDoc AI!\n\nSummary: ${currentDocument.summary?.substring(0, 200)}...`;
-      
-      if (navigator.share) {
-        await navigator.share({
-          title: 'PolyDoc AI Document Analysis',
-          text: shareText,
-          url: window.location.href
-        });
-      } else {
-        // Fallback: copy to clipboard
-        await navigator.clipboard.writeText(shareText);
-        // You could show a toast notification here
-        console.log('Share text copied to clipboard!');
-      }
-    } catch (error) {
-      console.error('Share error:', error);
-    }
-  };
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Check system status on component mount and periodically
-  useEffect(() => {
-    checkSystemStatus();
-    
-    // Check every 5 seconds if system is not ready
-    const interval = setInterval(() => {
-      if (!systemReady) {
-        checkSystemStatus();
-      }
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [systemReady]);
-  
-  // Fetch recent documents when component mounts and when system is ready
-  useEffect(() => {
-    if (systemReady && user?.uid) {
-      fetchRecentDocuments();
-    }
-  }, [systemReady, user?.uid]);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
-      {/* Floating Background Particles */}
-      <FloatingParticles count={8} />
-      
-      {/* Background Gradient Orb */}
-      <motion.div
-        animate={{
-          scale: [1, 1.1, 1],
-          rotate: [0, 90, 180, 270, 360],
-          opacity: [0.05, 0.15, 0.05]
-        }}
-        transition={{
-          duration: 30,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-        className="absolute top-1/4 right-1/4 w-96 h-96 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-full blur-3xl pointer-events-none"
-      />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="rounded-full" onClick={() => navigate('/')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
             <div className="flex items-center space-x-3">
-              <motion.div
-                whileHover={{ rotate: 5, scale: 1.1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                className="h-8 w-8 rounded-2xl bg-primary flex items-center justify-center"
-              >
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
-              </motion.div>
-              <span className="font-semibold">PolyDoc AI</span>
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">PolyDoc</h1>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <ThemeToggle className="rounded-3xl" />
-            <UserProfile />
+            {/* Navigation */}
+            <nav className="hidden md:flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                onClick={() => navigate('/')}
+                className="text-gray-600 dark:text-gray-400"
+              >
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+            </nav>
+
+            {/* User Menu */}
+            <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                  {user?.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt={user.displayName} 
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  )}
+                </div>
+                <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">
+                  {user?.displayName || user?.email}
+                </span>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="text-gray-600 dark:text-gray-400"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Connection Status Banner */}
-      {initializationStatus === 'Backend connection failed' && (
-        <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 p-4 mx-4 mt-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <X className="h-5 w-5 text-red-400" />
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* Left Column - Upload */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8 space-y-6">
+              <UploadZone onUpload={handleUpload} isUploading={isUploading} />
+              
+              {/* Quick Stats */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Quick Stats</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Total Documents</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{documents.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Processed</span>
+                    <span className="text-sm font-medium text-green-600">{documents.filter(d => d.processed).length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">This Week</span>
+                    <span className="text-sm font-medium text-blue-600">{documents.filter(d => new Date(d.upload_date) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700 dark:text-red-300">
-                Unable to connect to backend server. Please ensure the backend is running on port 8000.
-              </p>
+          </div>
+
+          {/* Right Column - Documents */}
+          <div className="lg:col-span-2">
+            {/* Search and Filter */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search documents..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Filter className="w-4 h-4 text-gray-400" />
+                  <select
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                  >
+                    <option value="all">All Documents</option>
+                    <option value="processed">Processed</option>
+                    <option value="recent">This Week</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Documents List */}
+            <div className="space-y-4">
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <motion.div
+                    className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full"
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  />
+                </div>
+              ) : filteredDocuments.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    {searchQuery || filter !== 'all' ? 'No documents found' : 'No documents yet'}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {searchQuery || filter !== 'all' 
+                      ? 'Try adjusting your search or filter criteria'
+                      : 'Upload your first document to get started'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <AnimatePresence>
+                    {filteredDocuments.map((document) => (
+                      <DocumentCard
+                        key={document._id}
+                        document={document}
+                        onDelete={handleDeleteDocument}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
-
-      {/* Main Content */}
-      <main className="container mx-auto max-w-6xl py-6 px-4 relative">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="grid gap-6 lg:grid-cols-3"
-        >
-          {/* Chat Interface */}
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="lg:col-span-2"
-          >
-          <div className="bg-background/80 backdrop-blur-sm border-0 rounded-3xl overflow-hidden shadow-xl ring-1 ring-black/5 dark:ring-white/10">
-              {/* Chat Header */}
-              <div className="p-4 border-b border-black/5 dark:border-white/5 flex justify-between items-center bg-gradient-to-r from-background/50 to-muted/20">
-                <div className="flex items-center space-x-2">
-                  <Sparkles className="text-primary h-5 w-5" />
-                  <h2 className="font-medium">Document Assistant</h2>
-                  
-                  {/* System Status Indicator */}
-                  {!systemReady && initializationStatus && (
-                    <div className="ml-3 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 text-xs rounded-full">
-                      {initializationStatus}
-                    </div>
-                  )}
-                  
-                  {systemReady && (
-                    <div className="ml-3 px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs rounded-full">
-                      System Ready
-                    </div>
-                  )}
-                  
-                  {currentDocument && (
-                    <div className="ml-3 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">
-                      Document Ready
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={clearChat}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="p-4 h-[400px] overflow-y-auto">
-                {messages.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    <Sparkles className="h-12 w-12 text-primary mb-4" />
-                    <h3 className="text-primary text-xl mb-2">Welcome back, {user?.displayName?.split(' ')[0]}!</h3>
-                    <p className="text-muted-foreground text-sm max-w-xs">
-                      Upload your documents below and start asking questions. I'll help you understand and analyze them!
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {messages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] p-3 rounded-2xl ${
-                            msg.isUser
-                              ? "bg-primary text-primary-foreground rounded-tr-none"
-                              : "bg-muted text-foreground rounded-tl-none"
-                          } animate-fade-in`}
-                        >
-                          <p className="text-sm">{msg.text}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {isUploading && (
-                      <div className="flex justify-start">
-                        <div className="max-w-[80%] p-3 rounded-2xl bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-tl-none">
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <FileUp className="w-4 h-4 animate-pulse" />
-                              <span className="text-sm font-medium">Processing document...</span>
-                            </div>
-                            <div className="w-full bg-blue-200 dark:bg-blue-800 rounded-full h-2">
-                              <div 
-                                className="bg-blue-600 dark:bg-blue-400 h-2 rounded-full transition-all duration-500 ease-out"
-                                style={{ width: `${uploadProgress}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-xs text-blue-600 dark:text-blue-400">
-                              {Math.round(uploadProgress)}% complete
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {isTyping && (
-                      <div className="flex justify-start">
-                        <div className="max-w-[80%] p-3 rounded-2xl bg-muted text-foreground rounded-tl-none">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse delay-75"></div>
-                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse delay-150"></div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="border-t border-black/5 dark:border-white/5 bg-gradient-to-t from-muted/20 to-background/50">
-                <UploadInput 
-                  onSubmit={handleSubmit}
-                  placeholder={!currentDocument ? "Upload a document to start chatting..." : "Ask questions about your document..."}
-                  uploadOnly={!currentDocument} // Show upload-only mode until document is uploaded
-                  disabled={false} // Allow upload for testing even when system not ready
-                />
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Sidebar */}
-          <motion.div 
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="space-y-6"
-          >
-            {/* Current Document */}
-            {currentDocument && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="bg-background/60 backdrop-blur-md border-0 rounded-3xl p-4 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
-              >
-                <h3 className="font-medium mb-3">Current Document</h3>
-                <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-primary/10 to-purple-500/10 rounded-xl border border-primary/20">
-                  <motion.div
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                  >
-                    <FileUp className="h-8 w-8 text-primary" />
-                  </motion.div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{currentDocument.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {(currentDocument.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <Button size="sm" variant="outline" className="flex-1" onClick={handleDownload}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1" onClick={handleShare}>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Share
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Recent Documents */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="bg-background/60 backdrop-blur-md border-0 rounded-3xl p-4 shadow-lg ring-1 ring-black/5 dark:ring-white/10"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium">Recent Documents</h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={fetchRecentDocuments}
-                  className="text-xs"
-                  disabled={loadingRecent}
-                >
-                  {loadingRecent ? 'Loading...' : 'Refresh'}
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {loadingRecent ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
-                    Loading documents...
-                  </div>
-                ) : recentDocuments.length === 0 ? (
-                  <div className="text-sm text-muted-foreground text-center py-4">
-                    No recent documents yet
-                  </div>
-                ) : (
-                  recentDocuments.slice(0, 5).map((doc, index) => (
-                    <motion.div
-                      key={doc.document_id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.2, delay: index * 0.1 }}
-                      className="flex items-center space-x-3 p-2 hover:bg-muted/50 rounded-xl cursor-pointer transition-colors"
-                      onClick={() => {
-                        setCurrentDocument({
-                          name: doc.filename,
-                          document_id: doc.document_id,
-                          size: 0, // Size not available in response
-                          upload_date: doc.upload_date
-                        });
-                        clearChat(); // Clear current chat when switching documents
-                      }}
-                    >
-                      <FileUp className="h-4 w-4 text-primary flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{doc.filename}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {doc.page_count || 0} pages • {doc.language || 'Unknown'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(doc.upload_date).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        </motion.div>
       </main>
     </div>
   );
