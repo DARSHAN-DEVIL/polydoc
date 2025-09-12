@@ -9,7 +9,8 @@ import {
   ArrowLeft,
   Download,
   Share2,
-  User
+  User,
+  ChevronDown
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -295,7 +296,7 @@ function UploadInput({
 
 // Main Dashboard Component
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -307,7 +308,9 @@ export default function Dashboard() {
   const [initializationStatus, setInitializationStatus] = useState(null);
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const messagesEndRef = useRef(null);
+  const userMenuRef = useRef(null);
   
   // Initialize Lenis smooth scrolling
   useLenis({
@@ -315,6 +318,30 @@ export default function Dashboard() {
     easing: (t) => 1 - Math.pow(1 - t, 3),
     smooth: true
   });
+  
+  // Handle sign out
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+  
+  // Handle click outside to close user menu
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Check backend initialization status
   const checkSystemStatus = async () => {
@@ -819,25 +846,73 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
           <div className="flex items-center gap-4">
             <ThemeToggle />
             
-            <motion.div 
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-full"
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                {user?.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt={user.displayName} 
-                    className="w-8 h-8 rounded-full"
-                  />
-                ) : (
-                  <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                )}
-              </div>
-              <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">
-                {user?.displayName?.split(' ')[0] || user?.email}
-              </span>
-            </motion.div>
+            <div className="relative" ref={userMenuRef}>
+              <motion.button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                whileHover={{ scale: 1.02 }}
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                  {user?.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt={user.displayName} 
+                      className="w-8 h-8 rounded-full"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  )}
+                </div>
+                <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:block">
+                  {user?.displayName?.split(' ')[0] || user?.email}
+                </span>
+                <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+              </motion.button>
+              
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
+                >
+                  <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                        {user?.photoURL ? (
+                          <img 
+                            src={user.photoURL} 
+                            alt={user.displayName} 
+                            className="w-10 h-10 rounded-full"
+                          />
+                        ) : (
+                          <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {user?.displayName || 'User'}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center space-x-2"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      <span>Sign out</span>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
       </header>
