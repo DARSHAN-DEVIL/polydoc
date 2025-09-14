@@ -433,6 +433,9 @@ async def chat(message: ChatMessage):
         # Get user-specific MongoDB store
         user_store = await get_user_mongodb_store(message.user_id)
         
+        # Debug logging
+        logger.info(f"Processing chat request: user_id={message.user_id}, document_id={message.document_id}, message='{message.message[:100]}...'")
+        
         # Get relevant context from MongoDB
         context, page_numbers = await user_store.get_context_for_question(
             question=message.message,
@@ -440,9 +443,25 @@ async def chat(message: ChatMessage):
             document_id=message.document_id
         )
         
+        logger.info(f"Context retrieved: {len(context)} characters, {len(page_numbers)} pages")
+        
         if not context:
+            # More informative error message with debugging info
+            error_msg = "I couldn't find relevant information in the documents to answer your question."
+            
+            # Check if user has any documents at all
+            try:
+                user_docs = await user_store.list_user_documents(message.user_id)
+                if not user_docs:
+                    error_msg += "\n\nIt looks like you haven't uploaded any documents yet. Please upload a document first."
+                else:
+                    error_msg += f"\n\nI found {len(user_docs)} document(s) in your account, but couldn't extract relevant content for your question. Try rephrasing your question or make sure the document contains the information you're looking for."
+            except Exception as doc_check_error:
+                logger.error(f"Error checking user documents: {doc_check_error}")
+                error_msg += "\n\nThere seems to be an issue accessing your documents. Please try again or contact support."
+            
             return ChatResponse(
-                response="I couldn't find relevant information in the documents to answer your question.",
+                response=error_msg,
                 confidence=0.0,
                 sources=[],
                 processing_time=time.time() - start_time,
@@ -450,17 +469,31 @@ async def chat(message: ChatMessage):
             )
         
         # Generate response using AI model
-        response = await ai_models.answer_question(
-            question=message.message,
-            context=context,
-            language=message.language
-        )
+        logger.info(f"Generating AI response for question with {len(context)} chars of context")
+        try:
+            response = await ai_models.answer_question(
+                question=message.message,
+                context=context,
+                language=message.language or 'en'
+            )
+            logger.info(f"AI response generated successfully: {len(response.content)} chars, confidence: {response.confidence}")
+        except Exception as ai_error:
+            logger.error(f"AI model failed: {ai_error}")
+            # Fallback response
+            return ChatResponse(
+                response=f"I found relevant information but encountered an error processing your question: {str(ai_error)}\n\nHere's what I found:\n\n{context[:500]}...",
+                confidence=0.3,
+                sources=page_numbers,
+                processing_time=time.time() - start_time,
+                timestamp=time.time()
+            )
         
         # Format response with page references
         formatted_response = response.content
         if page_numbers:
             formatted_response += f"\n\n📄 Sources: Page(s) {', '.join(map(str, page_numbers))}"
         
+        logger.info(f"Chat response completed successfully")
         return ChatResponse(
             response=formatted_response,
             confidence=response.confidence,
@@ -501,16 +534,32 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 # Get user-specific MongoDB store
                 user_store = await get_user_mongodb_store(chat_message.user_id)
                 
+                logger.info(f"WebSocket processing: user_id={chat_message.user_id}, message='{chat_message.message[:100]}...'")
+                
                 context, page_numbers = await user_store.get_context_for_question(
                     question=chat_message.message,
                     user_id=chat_message.user_id,
                     document_id=chat_message.document_id
                 )
                 
+                logger.info(f"WebSocket context retrieved: {len(context)} characters, {len(page_numbers)} pages")
+                
                 if not context:
+                    # More informative error message
+                    error_response = "I couldn't find relevant information to answer your question."
+                    
+                    try:
+                        user_docs = await user_store.list_user_documents(chat_message.user_id)
+                        if not user_docs:
+                            error_response += "\n\nNo documents found. Please upload a document first."
+                        else:
+                            error_response += f"\n\nFound {len(user_docs)} document(s) but couldn't extract relevant content. Try rephrasing your question."
+                    except Exception:
+                        pass
+                    
                     response_msg = {
                         "type": "response",
-                        "response": "I couldn't find relevant information to answer your question.",
+                        "response": error_response,
                         "confidence": 0.0,
                         "sources": [],
                         "processing_time": time.time() - start_time,
@@ -518,24 +567,39 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                     }
                 else:
                     # Generate AI response
-                    response = await ai_models.answer_question(
-                        question=chat_message.message,
-                        context=context,
-                        language=chat_message.language or 'en'
-                    )
-                    
-                    formatted_response = response.content
-                    if page_numbers:
-                        formatted_response += f"\n\n📄 Sources: Page(s) {', '.join(map(str, page_numbers))}"
-                    
-                    response_msg = {
-                        "type": "response",
-                        "response": formatted_response,
-                        "confidence": response.confidence,
-                        "sources": page_numbers,
-                        "processing_time": time.time() - start_time,
-                        "timestamp": time.time()
-                    }
+                    logger.info(f"WebSocket generating AI response with {len(context)} chars of context")
+                    try:
+                        response = await ai_models.answer_question(
+                            question=chat_message.message,
+                            context=context,
+                            language=chat_message.language or 'en'
+                        )
+                        logger.info(f"WebSocket AI response generated: {len(response.content)} chars, confidence: {response.confidence}")
+                        
+                        formatted_response = response.content
+                        if page_numbers:
+                            formatted_response += f"\n\n📄 Sources: Page(s) {', '.join(map(str, page_numbers))}"
+                        
+                        response_msg = {
+                            "type": "response",
+                            "response": formatted_response,
+                            "confidence": response.confidence,
+                            "sources": page_numbers,
+                            "processing_time": time.time() - start_time,
+                            "timestamp": time.time()
+                        }
+                        
+                    except Exception as ai_error:
+                        logger.error(f"WebSocket AI model failed: {ai_error}")
+                        # Fallback response
+                        response_msg = {
+                            "type": "response",
+                            "response": f"I found relevant information but encountered an error: {str(ai_error)}\n\nHere's what I found:\n\n{context[:500]}...",
+                            "confidence": 0.3,
+                            "sources": page_numbers,
+                            "processing_time": time.time() - start_time,
+                            "timestamp": time.time()
+                        }
                 
                 await manager.send_message(client_id, response_msg)
                 

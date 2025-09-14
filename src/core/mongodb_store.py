@@ -550,9 +550,11 @@ class MongoDBStore:
         document_id: Optional[str] = None,
         max_context_length: int = 2000
     ) -> Tuple[str, List[int]]:
-        """Get relevant context for answering a question"""
+        """Get relevant context for answering a question with robust fallback mechanisms"""
         try:
-            # Search for relevant chunks
+            self.logger.info(f"Getting context for question: '{question}' for user: {user_id}")
+            
+            # First try vector search for relevant chunks
             results = await self.search(
                 query=question,
                 user_id=user_id,
@@ -560,41 +562,173 @@ class MongoDBStore:
                 document_id=document_id
             )
             
+            self.logger.info(f"Vector search returned {len(results)} results")
+            
+            # If no results from vector search, try fallback approaches
             if not results:
+                self.logger.warning("No vector search results, trying fallback text search")
+                results = await self._fallback_text_search(
+                    question=question,
+                    user_id=user_id,
+                    document_id=document_id,
+                    top_k=10
+                )
+                
+            # If still no results, get any available chunks for the user/document
+            if not results:
+                self.logger.warning("No text search results, getting any available chunks")
+                results = await self._get_any_chunks(
+                    user_id=user_id,
+                    document_id=document_id,
+                    limit=5
+                )
+            
+            if not results:
+                self.logger.error(f"No content found for user {user_id}, document {document_id}")
                 return "", []
             
-            # Build context from high-relevance chunks first
+            # Build context from available chunks
             context_parts = []
             page_numbers = set()
             current_length = 0
             
             for result in results:
-                if result.relevance == 'low' and len(context_parts) > 2:
-                    continue  # Skip low relevance if we have enough high/medium relevance
+                # For fallback results, skip low relevance only if we have many results
+                if hasattr(result, 'relevance') and result.relevance == 'low' and len(context_parts) > 3:
+                    continue
                 
-                chunk_text = result.chunk.text
+                chunk_text = result.chunk.text if hasattr(result, 'chunk') else result.get('text', '')
+                page_number = result.chunk.page_number if hasattr(result, 'chunk') else result.get('page_number', 1)
                 
                 if current_length + len(chunk_text) > max_context_length:
                     # Truncate if needed
                     remaining_space = max_context_length - current_length
                     if remaining_space > 100:  # Only add if we have reasonable space
                         chunk_text = chunk_text[:remaining_space] + "..."
-                        context_parts.append(f"[Page {result.chunk.page_number}] {chunk_text}")
-                        page_numbers.add(result.chunk.page_number)
+                        context_parts.append(f"[Page {page_number}] {chunk_text}")
+                        page_numbers.add(page_number)
                     break
                 
-                context_parts.append(f"[Page {result.chunk.page_number}] {chunk_text}")
-                page_numbers.add(result.chunk.page_number)
+                context_parts.append(f"[Page {page_number}] {chunk_text}")
+                page_numbers.add(page_number)
                 current_length += len(chunk_text) + 20  # +20 for page annotation
             
             context = "\n\n".join(context_parts)
             pages = sorted(list(page_numbers))
             
+            self.logger.info(f"Successfully built context with {len(context_parts)} parts, {len(context)} characters")
             return context, pages
             
         except Exception as e:
             self.logger.error(f"Error getting context from MongoDB: {e}")
+            # Last resort: try to get any text content for the user
+            try:
+                fallback_context = await self._emergency_fallback_content(user_id, document_id)
+                if fallback_context:
+                    return fallback_context, [1]
+            except Exception as fallback_error:
+                self.logger.error(f"Fallback content retrieval failed: {fallback_error}")
             return "", []
+    
+    async def _fallback_text_search(
+        self, 
+        question: str, 
+        user_id: str, 
+        document_id: Optional[str] = None, 
+        top_k: int = 10
+    ) -> List[Any]:
+        """Fallback text search when vector search fails"""
+        try:
+            # Extract keywords from question
+            question_words = [word.lower().strip('.,!?') for word in question.split() if len(word) > 2]
+            
+            # Build text search query
+            match_stage = {"user_id": user_id}
+            if document_id:
+                match_stage["document_id"] = document_id
+            
+            # Add text matching using regex
+            if question_words:
+                text_patterns = []
+                for word in question_words[:5]:  # Limit to top 5 words
+                    text_patterns.append({"text": {"$regex": word, "$options": "i"}})
+                
+                if text_patterns:
+                    match_stage["$or"] = text_patterns
+            
+            cursor = self.db[self.chunks_collection].find(match_stage).limit(top_k)
+            results = []
+            
+            async for doc in cursor:
+                # Create a simple result object
+                chunk_data = {
+                    'text': doc['text'],
+                    'page_number': doc['page_number'],
+                    'document_id': doc['document_id'],
+                    'chunk_id': doc['chunk_id']
+                }
+                results.append(chunk_data)
+            
+            self.logger.info(f"Fallback text search found {len(results)} chunks")
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Fallback text search failed: {e}")
+            return []
+    
+    async def _get_any_chunks(
+        self, 
+        user_id: str, 
+        document_id: Optional[str] = None, 
+        limit: int = 5
+    ) -> List[Any]:
+        """Get any available chunks for the user/document"""
+        try:
+            match_stage = {"user_id": user_id}
+            if document_id:
+                match_stage["document_id"] = document_id
+            
+            cursor = self.db[self.chunks_collection].find(match_stage).limit(limit)
+            results = []
+            
+            async for doc in cursor:
+                chunk_data = {
+                    'text': doc['text'],
+                    'page_number': doc['page_number'],
+                    'document_id': doc['document_id'],
+                    'chunk_id': doc['chunk_id']
+                }
+                results.append(chunk_data)
+            
+            self.logger.info(f"Retrieved {len(results)} available chunks for user")
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error getting any chunks: {e}")
+            return []
+    
+    async def _emergency_fallback_content(self, user_id: str, document_id: Optional[str] = None) -> Optional[str]:
+        """Emergency fallback to get any text content"""
+        try:
+            match_stage = {"user_id": user_id}
+            if document_id:
+                match_stage["document_id"] = document_id
+            
+            # Get the first chunk with any text
+            doc = await self.db[self.chunks_collection].find_one(
+                match_stage,
+                {"text": 1, "_id": 0}
+            )
+            
+            if doc and doc.get('text'):
+                self.logger.info("Emergency fallback content retrieved")
+                return doc['text'][:1000]  # Return first 1000 chars
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"Emergency fallback failed: {e}")
+            return None
     
     async def list_user_documents(self, user_id: str) -> List[Dict[str, Any]]:
         """List all documents for a user"""
