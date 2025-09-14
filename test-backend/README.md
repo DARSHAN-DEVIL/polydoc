@@ -166,6 +166,19 @@ The pipeline tracks various metrics:
 2. **CSV Format Errors**: Ensure proper column names and format
 3. **Memory Issues**: Reduce batch size in ml_trainer.py
 4. **Model Loading Errors**: Check internet connection for model downloads
+5. **Import Errors**: The framework will run in mock mode if PolyDoc models aren't available
+6. **Argument Parsing**: Both `--test` and `--test-type` arguments are supported for backward compatibility
+
+### Testing the Framework:
+
+Before running the full tests, you can verify the framework is working:
+
+```bash
+# Test the framework itself
+python test_framework.py
+```
+
+This will run basic validation tests without requiring the full backend.
 
 ### Log Files:
 

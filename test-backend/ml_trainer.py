@@ -25,11 +25,52 @@ import sys
 import os
 
 # Add src to path to import our models
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+project_root = os.path.dirname(os.path.dirname(__file__))
+src_path = os.path.join(project_root, 'src')
+if src_path not in sys.path:
+    sys.path.append(src_path)
 
-from models.ai_models import AIModelManager, DocumentAnalyzer
-from core.document_processor import DocumentProcessor
-from utils.indian_language_detector import IndianLanguageDetector, detect_indian_language
+# Try to import models with fallback
+try:
+    from models.ai_models import AIModelManager, DocumentAnalyzer
+    from core.document_processor import DocumentProcessor
+    from utils.indian_language_detector import IndianLanguageDetector, detect_indian_language
+    MODELS_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Could not import PolyDoc models: {e}")
+    print("Running in mock mode for testing framework only...")
+    MODELS_AVAILABLE = False
+    
+    # Create mock classes for testing
+    class MockAIModelManager:
+        async def analyze_sentiment(self, text):
+            return {'sentiment': 'neutral', 'confidence': 0.5}
+        
+        async def generate_summary(self, text, max_length=150):
+            return f"Summary of: {text[:50]}..."
+        
+        async def answer_question(self, question, context):
+            return {'answer': 'Mock answer', 'confidence': 0.5}
+    
+    class MockDocumentAnalyzer:
+        def __init__(self, ai_models):
+            self.ai_models = ai_models
+    
+    class MockDocumentProcessor:
+        def process_document(self, content):
+            return {'processed': content}
+    
+    class MockIndianLanguageDetector:
+        def detect_language(self, text):
+            return {'language': 'en', 'confidence': 0.9}
+    
+    def detect_indian_language(text):
+        return 'en'
+    
+    AIModelManager = MockAIModelManager
+    DocumentAnalyzer = MockDocumentAnalyzer
+    DocumentProcessor = MockDocumentProcessor
+    IndianLanguageDetector = MockIndianLanguageDetector
 
 class MLTrainingFramework:
     """Main framework for training, testing, and validating PolyDoc AI models"""
@@ -67,11 +108,20 @@ class MLTrainingFramework:
     async def initialize_models(self):
         """Initialize AI models for training and testing"""
         try:
-            self.logger.info("Initializing AI models...")
+            if MODELS_AVAILABLE:
+                self.logger.info("Initializing PolyDoc AI models...")
+            else:
+                self.logger.info("Initializing mock AI models for testing...")
+            
             self.ai_models = AIModelManager()
             self.document_analyzer = DocumentAnalyzer(self.ai_models)
             self.document_processor = DocumentProcessor()
-            self.logger.info("AI models initialized successfully")
+            
+            if MODELS_AVAILABLE:
+                self.logger.info("PolyDoc AI models initialized successfully")
+            else:
+                self.logger.info("Mock AI models initialized successfully")
+                
         except Exception as e:
             self.logger.error(f"Error initializing models: {e}")
             raise

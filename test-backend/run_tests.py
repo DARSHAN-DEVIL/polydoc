@@ -277,15 +277,22 @@ async def run_indian_language_test():
         print(f"❌ Error during Indian language test: {e}")
         return False
 
-def main():
+async def main():
     """Main test runner function"""
     parser = argparse.ArgumentParser(description="PolyDoc ML Test Runner")
-    parser.add_argument('--test-type', choices=['basic', 'classification', 'qa', 'robustness', 'custom', 'multilingual', 'indian-language'], 
-                       default='basic', help='Type of test to run')
+    # Support both old and new argument formats for backward compatibility
+    test_group = parser.add_mutually_exclusive_group()
+    test_group.add_argument('--test', choices=['basic', 'classification', 'qa', 'robustness', 'custom', 'multilingual', 'indian-language'], 
+                           help='Type of test to run (deprecated, use --test-type)')
+    test_group.add_argument('--test-type', choices=['basic', 'classification', 'qa', 'robustness', 'custom', 'multilingual', 'indian-language'], 
+                           help='Type of test to run')
     parser.add_argument('--csv-path', help='Path to custom CSV file (for custom test type)')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
     
     args = parser.parse_args()
+    
+    # Handle backward compatibility
+    test_type = args.test_type or args.test or 'basic'
     
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -296,23 +303,31 @@ def main():
     
     success = False
     
-    if args.test_type == 'basic':
-        success = await run_basic_test()
-    elif args.test_type == 'classification':
-        success = await run_classification_only_test()
-    elif args.test_type == 'qa':
-        success = await run_qa_only_test()
-    elif args.test_type == 'robustness':
-        success = await run_robustness_test()
-    elif args.test_type == 'custom':
-        if not args.csv_path:
-            print("❌ Error: --csv-path is required for custom test type")
-            sys.exit(1)
-        success = await run_custom_csv_test(args.csv_path)
-    elif args.test_type == 'multilingual':
-        success = await run_multilingual_test()
-    elif args.test_type == 'indian-language':
-        success = await run_indian_language_test()
+    try:
+        if test_type == 'basic':
+            success = await run_basic_test()
+        elif test_type == 'classification':
+            success = await run_classification_only_test()
+        elif test_type == 'qa':
+            success = await run_qa_only_test()
+        elif test_type == 'robustness':
+            success = await run_robustness_test()
+        elif test_type == 'custom':
+            if not args.csv_path:
+                print("❌ Error: --csv-path is required for custom test type")
+                sys.exit(1)
+            success = await run_custom_csv_test(args.csv_path)
+        elif test_type == 'multilingual':
+            success = await run_multilingual_test()
+        elif test_type == 'indian-language':
+            success = await run_indian_language_test()
+    except KeyboardInterrupt:
+        print("\n⚠️  Test execution interrupted by user")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n💥 Unexpected error: {e}")
+        logging.exception("Unexpected error during test execution")
+        sys.exit(1)
     
     print("\n" + "="*60)
     if success:
@@ -323,4 +338,11 @@ def main():
 
 if __name__ == "__main__":
     # Run the main function
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n⚠️  Program interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n💥 Failed to start program: {e}")
+        sys.exit(1)

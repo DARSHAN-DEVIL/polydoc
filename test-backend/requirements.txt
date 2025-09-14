@@ -9,13 +9,7 @@ transformers>=4.15.0
 sentence-transformers>=2.2.0
 
 # Data Processing Dependencies
-asyncio
-pathlib
-
-# Logging and Utilities
-logging
-json
-time
+aiofiles>=0.8.0
 
 # Optional: For advanced metrics
 matplotlib>=3.5.0
@@ -28,3 +22,8 @@ tqdm>=4.62.0
 # Testing Dependencies
 pytest>=6.2.0
 pytest-asyncio>=0.18.0
+
+# Additional dependencies for PolyDoc integration
+fastapi>=0.68.0
+uvicorn>=0.15.0
+requests>=2.25.0
