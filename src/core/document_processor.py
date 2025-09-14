@@ -318,50 +318,145 @@ class DocumentProcessor:
         )
     
     async def _process_docx(self, file_path: Path) -> ProcessedDocument:
-        """Process DOCX files with layout preservation"""
-        doc = DocxDocument(file_path)
-        elements = []
-        
-        for para_idx, paragraph in enumerate(doc.paragraphs):
-            if paragraph.text.strip():
-                # Determine element type based on style
-                element_type = 'heading' if paragraph.style.name.startswith('Heading') else 'paragraph'
-                
-                element = DocumentElement(
-                    text=paragraph.text,
-                    page_number=1,  # DOCX doesn't have clear page boundaries
-                    element_type=element_type,
-                    bbox=(0, para_idx*30, 500, (para_idx+1)*30),
-                    confidence=1.0,
-                    language=self._detect_language(paragraph.text),
-                    font_info={'style': paragraph.style.name}
-                )
-                elements.append(element)
-        
-        # Process tables
-        for table_idx, table in enumerate(doc.tables):
-            table_text = []
-            for row in table.rows:
-                row_text = [cell.text for cell in row.cells]
-                table_text.append(' | '.join(row_text))
+        """Process DOCX files with enhanced content extraction"""
+        try:
+            doc = DocxDocument(file_path)
+            elements = []
+            page_number = 1
             
-            if table_text:
-                element = DocumentElement(
-                    text='\n'.join(table_text),
+            self.logger.info(f"Processing DOCX with {len(doc.paragraphs)} paragraphs and {len(doc.tables)} tables")
+            
+            # Process paragraphs with better error handling
+            for para_idx, paragraph in enumerate(doc.paragraphs):
+                if paragraph.text and paragraph.text.strip():
+                    try:
+                        # Determine element type based on style
+                        style_name = paragraph.style.name if paragraph.style else 'Normal'
+                        element_type = 'heading' if 'heading' in style_name.lower() else 'paragraph'
+                        
+                        # Clean and normalize text
+                        cleaned_text = paragraph.text.strip().replace('\r\n', '\n').replace('\r', '\n')
+                        
+                        if len(cleaned_text) > 5:  # Only add meaningful content
+                            element = DocumentElement(
+                                text=cleaned_text,
+                                page_number=page_number,
+                                element_type=element_type,
+                                bbox=(0, para_idx*30, 500, (para_idx+1)*30),
+                                confidence=1.0,
+                                language=self._detect_language(cleaned_text),
+                                font_info={'style': style_name}
+                            )
+                            elements.append(element)
+                    except Exception as para_error:
+                        self.logger.warning(f"Error processing paragraph {para_idx}: {para_error}")
+                        continue
+            
+            # Process tables with better error handling
+            for table_idx, table in enumerate(doc.tables):
+                try:
+                    table_rows = []
+                    for row in table.rows:
+                        row_cells = []
+                        for cell in row.cells:
+                            cell_text = cell.text.strip() if cell.text else ""
+                            row_cells.append(cell_text)
+                        if any(cell.strip() for cell in row_cells):  # Only add non-empty rows
+                            table_rows.append(' | '.join(row_cells))
+                    
+                    if table_rows:
+                        table_content = '\n'.join(table_rows)
+                        element = DocumentElement(
+                            text=table_content,
+                            page_number=page_number,
+                            element_type='table',
+                            bbox=(0, 1000+table_idx*100, 500, 1000+(table_idx+1)*100),
+                            confidence=1.0,
+                            language=self._detect_language(table_content)
+                        )
+                        elements.append(element)
+                except Exception as table_error:
+                    self.logger.warning(f"Error processing table {table_idx}: {table_error}")
+                    continue
+            
+            # Extract text from headers and footers
+            try:
+                for section in doc.sections:
+                    # Process header
+                    if section.header:
+                        for paragraph in section.header.paragraphs:
+                            if paragraph.text and paragraph.text.strip():
+                                element = DocumentElement(
+                                    text=paragraph.text.strip(),
+                                    page_number=page_number,
+                                    element_type='header',
+                                    bbox=(0, -50, 500, 0),
+                                    confidence=0.9,
+                                    language=self._detect_language(paragraph.text)
+                                )
+                                elements.append(element)
+                    
+                    # Process footer
+                    if section.footer:
+                        for paragraph in section.footer.paragraphs:
+                            if paragraph.text and paragraph.text.strip():
+                                element = DocumentElement(
+                                    text=paragraph.text.strip(),
+                                    page_number=page_number,
+                                    element_type='footer',
+                                    bbox=(0, 1100, 500, 1150),
+                                    confidence=0.9,
+                                    language=self._detect_language(paragraph.text)
+                                )
+                                elements.append(element)
+            except Exception as header_footer_error:
+                self.logger.warning(f"Error processing headers/footers: {header_footer_error}")
+            
+            # If no elements were extracted, create a fallback element
+            if not elements:
+                self.logger.warning(f"No content extracted from DOCX file: {file_path.name}")
+                fallback_element = DocumentElement(
+                    text=f"Document processed but no readable content found in {file_path.name}. The file may be empty, corrupted, or contain only images/formatting.",
                     page_number=1,
-                    element_type='table',
-                    bbox=(0, 1000+table_idx*100, 500, 1000+(table_idx+1)*100),
-                    confidence=1.0,
-                    language=self._detect_language(' '.join(table_text))
+                    element_type='error',
+                    bbox=(0, 0, 500, 50),
+                    confidence=0.5,
+                    language='en'
                 )
-                elements.append(element)
-        
-        return ProcessedDocument(
-            filename=file_path.name,
-            total_pages=1,
-            elements=elements,
-            metadata={'file_type': 'docx', 'size': file_path.stat().st_size}
-        )
+                elements.append(fallback_element)
+            
+            self.logger.info(f"Successfully extracted {len(elements)} elements from DOCX")
+            
+            return ProcessedDocument(
+                filename=file_path.name,
+                total_pages=1,
+                elements=elements,
+                metadata={
+                    'file_type': 'docx', 
+                    'size': file_path.stat().st_size,
+                    'paragraphs_count': len([e for e in elements if e.element_type == 'paragraph']),
+                    'tables_count': len([e for e in elements if e.element_type == 'table']),
+                    'headings_count': len([e for e in elements if e.element_type == 'heading'])
+                }
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error processing DOCX file {file_path}: {e}")
+            # Create error document
+            error_element = DocumentElement(
+                text=f"Error processing DOCX file: {str(e)}. Please ensure the file is not corrupted and try again.",
+                page_number=1,
+                element_type='error',
+                bbox=(0, 0, 500, 50),
+                confidence=0.0,
+                language='en'
+            )
+            return ProcessedDocument(
+                filename=file_path.name,
+                total_pages=1,
+                elements=[error_element],
+                metadata={'file_type': 'docx', 'error': str(e)}
+            )
     
     async def _process_ppt(self, file_path: Path) -> ProcessedDocument:
         """Process legacy PPT files - fallback approach"""

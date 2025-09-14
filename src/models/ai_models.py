@@ -602,8 +602,11 @@ class AIModelManager:
                 # Remove the truncation to 500 characters
                 response_parts.append(f"\n\nHere's what I found in the document: {context}")
             
-            # Combine all parts into a proper multi-line response
+            # Combine all parts into a well-formatted response
             answer = "".join(response_parts)
+            
+            # Post-process the answer for better formatting
+            answer = self._format_response(answer)
             
             # Calculate confidence based on available information
             if qa_answer and qa_confidence > 0.3:
@@ -710,6 +713,60 @@ class AIModelManager:
             
         except Exception:
             return text[:max_length]
+    
+    def _format_response(self, response: str) -> str:
+        """Format AI response for better readability"""
+        try:
+            import re
+            
+            # Clean up the response
+            formatted = response.strip()
+            
+            # Fix spacing around numbered lists
+            formatted = re.sub(r'(\d+\.)([A-Z])', r'\1 \2', formatted)
+            
+            # Add proper line breaks before numbered items
+            formatted = re.sub(r'([.!?])\s*(\d+\.)', r'\1\n\n\2', formatted)
+            
+            # Add line breaks before bullet points
+            formatted = re.sub(r'([.!?])\s*(•|‣|\*)', r'\1\n\n\2', formatted)
+            
+            # Add line breaks before "Additional relevant information"
+            formatted = re.sub(r'(Additional relevant information)', r'\n\n**\1:**', formatted)
+            
+            # Format section headers
+            formatted = re.sub(r'According to the document:', '**According to the document:**', formatted)
+            
+            # Ensure proper paragraph breaks
+            sentences = re.split(r'([.!?]+)', formatted)
+            result_parts = []
+            current_part = ""
+            
+            for i, part in enumerate(sentences):
+                current_part += part
+                
+                # If this is a sentence ending and the current part is getting long
+                if part in ['.', '!', '?'] and len(current_part) > 150:
+                    result_parts.append(current_part.strip())
+                    current_part = ""
+                elif i == len(sentences) - 1:  # Last part
+                    result_parts.append(current_part.strip())
+            
+            # Join with proper spacing
+            if len(result_parts) > 1:
+                formatted = '\n\n'.join([part for part in result_parts if part.strip()])
+            
+            # Clean up multiple newlines
+            formatted = re.sub(r'\n{3,}', '\n\n', formatted)
+            
+            # Clean up extra spaces
+            formatted = re.sub(r'  +', ' ', formatted)
+            
+            return formatted.strip()
+            
+        except Exception as e:
+            self.logger.warning(f"Response formatting failed: {e}")
+            return response
     
     async def detect_language(self, text: str) -> str:
         """Detect language of text"""
