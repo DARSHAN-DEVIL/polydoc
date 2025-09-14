@@ -161,3 +161,53 @@
 2025-09-14 19:25:15,139 - utils.indian_language_detector - INFO - Initializing Indian Language Detector...
 2025-09-14 19:25:15,274 - ml_trainer - INFO - Language detection testing completed. Success rate: 100.00%
 2025-09-14 19:25:15,283 - ml_trainer - INFO - Results saved to Z:\WORK\Extra-Projects\ML-NLP\polydoc\test-backend\results
+2025-09-14 19:38:07,849 - ml_trainer - INFO - Initializing PolyDoc AI models...
+2025-09-14 19:38:07,849 - models.ai_models - INFO - Using device: cpu
+2025-09-14 19:38:07,850 - models.ai_models - INFO - Available disk space: 67.82 GB
+2025-09-14 19:38:07,851 - models.ai_models - INFO - Loading sentence transformer (optimized)...
+2025-09-14 19:38:07,855 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-09-14 19:38:13,055 - models.ai_models - INFO - Loading summarization model (optimized)...
+2025-09-14 19:38:14,667 - models.ai_models - INFO - Loading QA model (optimized)...
+2025-09-14 19:38:18,480 - models.ai_models - INFO - Loading classification model (optimized)...
+2025-09-14 19:38:19,956 - models.ai_models - INFO - Initializing translation framework...
+2025-09-14 19:38:19,962 - models.ai_models - INFO - Models loaded successfully: embedding, summarizer, qa, classifier, translation
+2025-09-14 19:38:19,965 - core.document_processor - INFO - Attempting to initialize OCR with languages: ['en']
+2025-09-14 19:38:21,615 - core.document_processor - INFO - Attempting to initialize OCR with languages: ['en', 'hi']
+2025-09-14 19:38:24,084 - core.document_processor - INFO - Initialized 2 OCR readers, stopping for efficiency
+2025-09-14 19:38:24,088 - core.document_processor - WARNING - Layout model not available: module layoutparser has no attribute Detectron2LayoutModel
+2025-09-14 19:38:24,088 - ml_trainer - INFO - PolyDoc AI models initialized successfully
+2025-09-14 19:38:24,088 - ml_trainer - INFO - Loading training dataset from Z:\WORK\Extra-Projects\ML-NLP\polydoc\test-backend\sample_training_data.csv
+2025-09-14 19:38:24,093 - ml_trainer - INFO - Loaded 30 samples for training
+2025-09-14 19:38:24,093 - ml_trainer - INFO - Starting classification training/evaluation...
+2025-09-14 19:38:24,095 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:38:24,096 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:38:24,096 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:38:24,096 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:38:24,097 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:38:24,097 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:38:24,105 - ml_trainer - INFO - Classification training completed. Accuracy: 0.3333
+2025-09-14 19:47:16,788 - ml_trainer - INFO - Initializing PolyDoc AI models...
+2025-09-14 19:47:16,789 - models.ai_models - INFO - Using device: cpu
+2025-09-14 19:47:16,790 - models.ai_models - INFO - Available disk space: 67.66 GB
+2025-09-14 19:47:16,791 - models.ai_models - INFO - Loading sentence transformer (optimized)...
+2025-09-14 19:47:16,797 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-09-14 19:47:24,274 - models.ai_models - INFO - Loading summarization model (optimized)...
+2025-09-14 19:47:25,983 - models.ai_models - INFO - Loading QA model (optimized)...
+2025-09-14 19:47:29,938 - models.ai_models - INFO - Loading classification model (optimized)...
+2025-09-14 19:47:31,047 - models.ai_models - INFO - Initializing translation framework...
+2025-09-14 19:47:31,054 - models.ai_models - INFO - Models loaded successfully: embedding, summarizer, qa, classifier, translation
+2025-09-14 19:47:31,059 - core.document_processor - INFO - Attempting to initialize OCR with languages: ['en']
+2025-09-14 19:47:32,854 - core.document_processor - INFO - Attempting to initialize OCR with languages: ['en', 'hi']
+2025-09-14 19:47:35,824 - core.document_processor - INFO - Initialized 2 OCR readers, stopping for efficiency
+2025-09-14 19:47:35,830 - core.document_processor - WARNING - Layout model not available: module layoutparser has no attribute Detectron2LayoutModel
+2025-09-14 19:47:35,831 - ml_trainer - INFO - PolyDoc AI models initialized successfully
+2025-09-14 19:47:35,831 - ml_trainer - INFO - Loading training dataset from Z:\WORK\Extra-Projects\ML-NLP\polydoc\test-backend\sample_training_data.csv
+2025-09-14 19:47:35,838 - ml_trainer - INFO - Loaded 30 samples for training
+2025-09-14 19:47:35,838 - ml_trainer - INFO - Starting classification training/evaluation...
+2025-09-14 19:47:35,842 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:47:35,843 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:47:35,844 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:47:35,844 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:47:35,845 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:47:35,846 - models.ai_models - ERROR - Error in sentiment analysis: PreTrainedTokenizerFast._batch_encode_plus() got an unexpected keyword argument 'tokenizer_kwargs'
+2025-09-14 19:47:35,857 - ml_trainer - INFO - Classification training completed. Accuracy: 0.3333

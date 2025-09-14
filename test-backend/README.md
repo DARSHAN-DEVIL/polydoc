@@ -64,40 +64,53 @@ python run_tests.py --test custom --csv-path /path/to/your/data.csv
 ## Test Types
 
 ### Basic Test (`--test basic`)
+
 Runs the complete ML pipeline with sample data including:
+
 - Document classification
 - Question-answering
 - Sentiment analysis
 - Model validation
 
 ### Classification Test (`--test classification`)
+
 Tests document/text classification capabilities:
+
 - Requires CSV with 'text' and 'label' columns
 - Outputs accuracy, F1-score, and class performance
 
 ### Question-Answering Test (`--test qa`)
+
 Tests QA model performance:
+
 - Requires CSV with 'question', 'answer', and 'context' columns
 - Measures similarity scores and confidence levels
 
 ### Sentiment Analysis Test (`--test sentiment`)
+
 Tests sentiment classification:
+
 - Requires CSV with 'text' column
 - Analyzes sentiment polarity and confidence
 
 ### Robustness Test (`--test robustness`)
+
 Tests model stability and performance:
+
 - Uses validation data to test edge cases
 - Measures processing time and success rates
 
 ### Custom Test (`--test custom`)
+
 Tests with your own data:
+
 - Automatically detects available columns
 - Runs appropriate tests based on data structure
 
 ## CSV Data Format
 
 ### For Classification:
+
 ```csv
 text,label
 "Document content here...",category1
@@ -105,12 +118,14 @@ text,label
 ```
 
 ### For Question-Answering:
+
 ```csv
 question,answer,context
 "What is AI?","Artificial Intelligence","AI is a field of computer science..."
 ```
 
 ### For Sentiment Analysis:
+
 ```csv
 text,sentiment
 "This is great!",positive
@@ -128,22 +143,27 @@ The pipeline includes three sample CSV files:
 ## Usage Examples
 
 ### Run Complete Pipeline
+
 ```bash
 python run_tests.py --test basic
 ```
 
 ### Test Only Classification
+
 ```bash
 python run_tests.py --test classification
 ```
 
 ### Test with Custom Data
+
 ```bash
 python run_tests.py --test custom --csv-path my_documents.csv
 ```
 
 ### Analyze Results
+
 ```bash
+python analyze_results.py --section classification
 python analyze_results.py --section logs --log-file ml_training.log
 ```
 
