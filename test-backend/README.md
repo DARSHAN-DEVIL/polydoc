@@ -30,6 +30,24 @@ test-backend/
 
 ## Quick Start
 
+# Long form
+
+python analyze_results.py --section classification
+python analyze_results.py --section qa
+python analyze_results.py --section sentiment
+python analyze_results.py --section robustness
+python analyze_results.py --section summary
+python analyze_results.py --section logs
+
+# Short form (NEW!)
+
+python analyze_results.py --classification
+python analyze_results.py --qa
+python analyze_results.py --sentiment
+python analyze_results.py --robustness
+python analyze_results.py --summary
+python analyze_results.py --logs
+
 ### 1. Setup Environment
 
 ```bash
