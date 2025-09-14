@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![PolyDoc AI Logo](./public/logo.mp4)
+
 
 **Transform any document into intelligent, searchable knowledge**
 
