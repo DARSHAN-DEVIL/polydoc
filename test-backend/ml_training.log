@@ -106,3 +106,58 @@
 2025-08-23 11:00:59,541 - ml_trainer - INFO - QA evaluation completed. Average similarity: 0.2320
 2025-08-23 11:01:00,443 - ml_trainer - INFO - Results saved to D:\polydoc\test-backend\results
 2025-08-23 11:01:00,443 - ml_trainer - INFO - Complete ML pipeline finished successfully!
+2025-09-14 18:46:00,267 - ml_trainer - INFO - Starting complete ML pipeline...
+2025-09-14 18:46:00,268 - ml_trainer - INFO - Initializing PolyDoc AI models...
+2025-09-14 18:46:00,268 - models.ai_models - INFO - Using device: cpu
+2025-09-14 18:46:00,269 - models.ai_models - INFO - Available disk space: 1.95 GB
+2025-09-14 18:46:00,269 - models.ai_models - INFO - Loading sentence transformer (optimized)...
+2025-09-14 18:46:00,271 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: paraphrase-multilingual-MiniLM-L12-v2
+2025-09-14 18:46:06,609 - models.ai_models - INFO - Loading summarization model (optimized)...
+2025-09-14 18:46:07,406 - models.ai_models - ERROR - Failed to load summarization model: Could not load model facebook/bart-large-cnn with any of the following classes: (<class 'transformers.models.auto.modeling_auto.AutoModelForSeq2SeqLM'>, <class 'transformers.models.bart.modeling_bart.BartForConditionalGeneration'>). See the original errors:
+
+while loading with AutoModelForSeq2SeqLM, an error is thrown:
+Traceback (most recent call last):
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\pipelines\base.py", line 293, in infer_framework_load_model
+    model = model_class.from_pretrained(model, **kwargs)
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\models\auto\auto_factory.py", line 604, in from_pretrained
+    return model_class.from_pretrained(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        pretrained_model_name_or_path, *model_args, config=config, **hub_kwargs, **kwargs
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\modeling_utils.py", line 288, in _wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\modeling_utils.py", line 5176, in from_pretrained
+    ) = cls._load_pretrained_model(
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        model,
+        ^^^^^^
+    ...<13 lines>...
+        weights_only=weights_only,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\modeling_utils.py", line 5442, in _load_pretrained_model
+    load_state_dict(checkpoint_files[0], map_location="meta", weights_only=weights_only).keys()
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\modeling_utils.py", line 508, in load_state_dict
+    with safe_open(checkpoint_file, framework="pt") as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: The paging file is too small for this operation to complete. (os error 1455)
+
+while loading with BartForConditionalGeneration, an error is thrown:
+Traceback (most recent call last):
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\pipelines\base.py", line 293, in infer_framework_load_model
+    model = model_class.from_pretrained(model, **kwargs)
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\modeling_utils.py", line 288, in _wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Asus\AppData\Roaming\Python\Python313\site-packages\transformers\modeling_utils.py", line 5057, in from_pretrained
+    with safe_open(checkpoint_files[0], framework="pt") as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: The paging file is too small for this operation to complete. (os error 1455)
+
+
+
+2025-09-14 18:46:07,406 - models.ai_models - INFO - Falling back to lighter summarization model...
+2025-09-14 18:46:08,042 - huggingface_hub.file_download - WARNING - Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
