@@ -144,7 +144,7 @@ python run_tests.py --test custom --csv-path my_documents.csv
 
 ### Analyze Results
 ```bash
-python analyze_results.py --log-file ml_training.log
+python analyze_results.py --section logs --log-file ml_training.log
 ```
 
 ## Performance Metrics

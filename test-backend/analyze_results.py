@@ -201,6 +201,168 @@ class ResultsAnalyzer:
                     processing_time = result.get('processing_time', 0)
                     print(f"   • {test_name:15}: {status} ({processing_time:.2f}s)")
     
+    def analyze_log_file(self, log_path: str):
+        """Analyze training log file for insights"""
+        import re
+        from datetime import datetime
+        from collections import Counter, defaultdict
+        
+        self.print_header("LOG FILE ANALYSIS")
+        
+        if not Path(log_path).exists():
+            print(f"❌ Log file not found at {log_path}")
+            return
+        
+        # Read and parse log file
+        log_entries = []
+        error_count = 0
+        warning_count = 0
+        info_count = 0
+        error_messages = []
+        warning_messages = []
+        
+        with open(log_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                    
+                # Parse log entry
+                log_match = re.match(r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),\d+ - ([^-]+) - (\w+) - (.+)', line)
+                if log_match:
+                    timestamp_str, logger, level, message = log_match.groups()
+                    try:
+                        timestamp = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        log_entries.append({
+                            'timestamp': timestamp,
+                            'logger': logger.strip(),
+                            'level': level,
+                            'message': message
+                        })
+                        
+                        if level == 'ERROR':
+                            error_count += 1
+                            error_messages.append(message)
+                        elif level == 'WARNING':
+                            warning_count += 1
+                            warning_messages.append(message)
+                        elif level == 'INFO':
+                            info_count += 1
+                    except ValueError:
+                        continue
+        
+        if not log_entries:
+            print("❌ No valid log entries found")
+            return
+        
+        # Basic statistics
+        print(f"\n📊 Log Statistics:")
+        print(f"   • Total Entries:    {len(log_entries)}")
+        print(f"   • Info Messages:    {info_count}")
+        print(f"   • Warnings:         {warning_count}")
+        print(f"   • Errors:           {error_count}")
+        
+        # Time analysis
+        start_time = log_entries[0]['timestamp']
+        end_time = log_entries[-1]['timestamp']
+        duration = end_time - start_time
+        
+        print(f"\n⏱️ Execution Timeline:")
+        print(f"   • Start Time:       {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"   • End Time:         {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"   • Total Duration:   {duration}")
+        
+        # Logger analysis
+        logger_counter = Counter(entry['logger'] for entry in log_entries)
+        print(f"\n🔍 Activity by Component:")
+        for logger, count in logger_counter.most_common():
+            print(f"   • {logger:20}: {count:3d} messages")
+        
+        # Performance metrics extraction
+        performance_metrics = []
+        training_phases = []
+        
+        for entry in log_entries:
+            message = entry['message']
+            
+            # Extract accuracy metrics
+            if 'Accuracy:' in message:
+                acc_match = re.search(r'Accuracy: ([0-9.]+)', message)
+                if acc_match:
+                    performance_metrics.append(('Accuracy', float(acc_match.group(1))))
+            
+            # Extract similarity metrics
+            if 'similarity:' in message:
+                sim_match = re.search(r'similarity: ([0-9.]+)', message)
+                if sim_match:
+                    performance_metrics.append(('Similarity', float(sim_match.group(1))))
+            
+            # Extract success rates
+            if 'Success rate:' in message:
+                rate_match = re.search(r'Success rate: ([0-9.]+)%', message)
+                if rate_match:
+                    performance_metrics.append(('Success Rate', float(rate_match.group(1)) / 100))
+            
+            # Track training phases
+            if any(phase in message for phase in ['Starting', 'completed', 'finished']):
+                training_phases.append((entry['timestamp'], message))
+        
+        # Performance summary
+        if performance_metrics:
+            print(f"\n🎯 Performance Metrics Found:")
+            metric_groups = defaultdict(list)
+            for metric_type, value in performance_metrics:
+                metric_groups[metric_type].append(value)
+            
+            for metric_type, values in metric_groups.items():
+                avg_value = sum(values) / len(values)
+                max_value = max(values)
+                min_value = min(values)
+                print(f"   • {metric_type:12}: Avg {avg_value:.3f}, Max {max_value:.3f}, Min {min_value:.3f}")
+        
+        # Error analysis
+        if error_messages:
+            print(f"\n❌ Error Analysis:")
+            error_types = Counter()
+            for error in error_messages:
+                if 'attribute' in error and 'has no attribute' in error:
+                    error_types['Missing Attribute'] += 1
+                elif 'FileNotFoundError' in error or 'not found' in error:
+                    error_types['File Not Found'] += 1
+                elif 'ImportError' in error or 'ModuleNotFoundError' in error:
+                    error_types['Import Error'] += 1
+                else:
+                    error_types['Other'] += 1
+            
+            for error_type, count in error_types.most_common():
+                print(f"   • {error_type:15}: {count} occurrences")
+            
+            print(f"\n🔧 Recent Error Messages:")
+            for error in error_messages[-5:]:  # Show last 5 errors
+                print(f"   • {error[:80]}{'...' if len(error) > 80 else ''}")
+        
+        # Warning analysis
+        if warning_messages:
+            print(f"\n⚠️ Warning Summary:")
+            warning_types = Counter()
+            for warning in warning_messages:
+                if 'CUDA' in warning or 'GPU' in warning:
+                    warning_types['GPU/CUDA'] += 1
+                elif 'model not available' in warning or 'Layout' in warning:
+                    warning_types['Model Unavailable'] += 1
+                else:
+                    warning_types['Other'] += 1
+            
+            for warning_type, count in warning_types.most_common():
+                print(f"   • {warning_type:15}: {count} occurrences")
+        
+        # Training phases timeline
+        if training_phases:
+            print(f"\n📈 Training Pipeline Timeline:")
+            for i, (timestamp, message) in enumerate(training_phases[-10:]):  # Show last 10 phases
+                time_str = timestamp.strftime('%H:%M:%S')
+                print(f"   {time_str} - {message[:60]}{'...' if len(message) > 60 else ''}")
+    
     def print_summary(self):
         """Print overall summary and recommendations"""
         self.print_header("OVERALL ASSESSMENT & RECOMMENDATIONS")
@@ -274,8 +436,9 @@ def main():
     
     parser = argparse.ArgumentParser(description="PolyDoc Results Analyzer")
     parser.add_argument('--results-path', help='Path to results JSON file')
-    parser.add_argument('--section', choices=['classification', 'qa', 'sentiment', 'robustness', 'summary'], 
+    parser.add_argument('--section', choices=['classification', 'qa', 'sentiment', 'robustness', 'summary', 'logs'], 
                        help='Analyze specific section only')
+    parser.add_argument('--log-file', help='Path to log file for analysis')
     
     args = parser.parse_args()
     
@@ -294,6 +457,9 @@ def main():
             analyzer.analyze_robustness_results()
         elif args.section == 'summary':
             analyzer.print_summary()
+        elif args.section == 'logs':
+            log_file = args.log_file or 'ml_training.log'
+            analyzer.analyze_log_file(log_file)
     else:
         # Run full analysis
         analyzer.analyze_classification_results()
