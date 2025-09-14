@@ -681,6 +681,35 @@ class AIModelManager:
                 metadata={'error': str(e), 'question': question},
                 processing_time=time.time() - start_time
             )
+            
+    
+    def _extract_key_sentences(self, text: str, max_length: int) -> str:
+        """Extract key sentences for summarization"""
+        try:
+            import re
+            
+            # Split into sentences
+            sentences = re.split(r'[.!?।]+', text)
+            sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+            
+            if not sentences:
+                return text[:max_length]
+            
+            # Simple extractive approach: take first few sentences that fit
+            selected = []
+            current_length = 0
+            
+            for sentence in sentences:
+                if current_length + len(sentence) <= max_length:
+                    selected.append(sentence)
+                    current_length += len(sentence)
+                else:
+                    break
+            
+            return '. '.join(selected) if selected else text[:max_length]
+            
+        except Exception:
+            return text[:max_length]
     
     async def detect_language(self, text: str) -> str:
         """Detect language of text"""
