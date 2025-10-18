@@ -984,7 +984,15 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
               </div>
 
               {/* Messages */}
-              <div className="p-4 h-[400px] overflow-y-auto">
+              <div className="p-4 h-[400px] overflow-y-auto scroll-smooth chat-container" 
+                   onWheel={(e) => {
+                     // Enhanced mouse wheel scrolling
+                     const container = e.currentTarget;
+                     container.scrollBy({
+                       top: e.deltaY * 1.5, // Increase scroll speed
+                       behavior: 'smooth'
+                     });
+                   }}>
                 {messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-center">
                     <Sparkles className="h-12 w-12 text-primary mb-4" />

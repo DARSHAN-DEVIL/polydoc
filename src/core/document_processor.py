@@ -668,29 +668,53 @@ class DocumentProcessor:
             image = cv2.imread(str(file_path))
             original_image = None
             
+            # Enhanced fallback loading with PIL
             if image is None:
-                # Try with PIL as fallback
                 try:
+                    self.logger.info("Trying PIL image loading...")
                     pil_image = Image.open(str(file_path))
+                    
+                    # Handle different image modes
+                    if pil_image.mode == 'RGBA':
+                        # Convert RGBA to RGB
+                        pil_image = pil_image.convert('RGB')
+                    elif pil_image.mode == 'P':
+                        # Convert palette mode to RGB
+                        pil_image = pil_image.convert('RGB')
+                    elif pil_image.mode == 'L':
+                        # Convert grayscale to RGB
+                        pil_image = pil_image.convert('RGB')
+                    
                     # Convert PIL to cv2 format
                     image = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
                     original_image = np.array(pil_image)
-                    self.logger.info("Image loaded using PIL fallback")
+                    self.logger.info(f"Image loaded using PIL: {pil_image.size}, mode: {pil_image.mode}")
                 except Exception as pil_error:
-                    raise ValueError(f"Could not load image {file_path.name}. CV2 error: Image is None. PIL error: {pil_error}")
-            else:
-                original_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    self.logger.error(f"All image loading methods failed. PIL error: {pil_error}")
+                    raise ValueError(f"Could not load image {file_path.name}. Both OpenCV and PIL failed.")
             
-            # Enhanced image preprocessing for better OCR
-            processed_images = self._preprocess_image_for_ocr(image)
+            # Get file size for processing optimization
+            file_size_mb = file_path.stat().st_size / (1024 * 1024)
+            
+            # Optimize preprocessing based on image size to improve performance
+            max_preprocessed_versions = 3 if file_size_mb > 5 else 6  # Fewer versions for large files
+            processed_images = self._preprocess_image_for_ocr(image, max_versions=max_preprocessed_versions)
             
             elements = []
             best_results = []
+            processing_start_time = time.time()
             
-            # Try OCR on multiple preprocessed versions and combine results
+            self.logger.info(f"Processing {len(processed_images)} image versions (optimized for {file_size_mb:.1f}MB file)")
+            
+            # Try OCR on multiple preprocessed versions with timeout protection
             for i, processed_img in enumerate(processed_images):
                 try:
-                    self.logger.info(f"Running OCR on preprocessed image {i+1}/{len(processed_images)}...")
+                    # Add timeout protection for large images
+                    if time.time() - processing_start_time > 120:  # 2 minute timeout
+                        self.logger.warning(f"Processing timeout reached, stopping at version {i+1}")
+                        break
+                        
+                    self.logger.info(f"Running OCR on preprocessed image {i+1}/{len(processed_images)} (elapsed: {time.time() - processing_start_time:.1f}s)...")
                     
                     ocr_results = []
                     
@@ -1322,39 +1346,94 @@ class DocumentProcessor:
         else:
             return 'en'
     
-    def _preprocess_image_for_ocr(self, image: np.ndarray) -> List[np.ndarray]:
-        """Apply various preprocessing techniques to improve OCR accuracy"""
+    def _preprocess_image_for_ocr(self, image: np.ndarray, max_versions: int = 6) -> List[np.ndarray]:
+        """Apply optimized preprocessing techniques for better OCR accuracy and performance"""
         preprocessed_images = []
         
         try:
-            # Original image
+            import time
+            start_time = time.time()
+            
+            # Original image (always include)
             preprocessed_images.append(image.copy())
             
-            # Convert to grayscale
+            # Convert to grayscale once
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             
-            # 1. Enhance contrast using CLAHE
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            enhanced = clahe.apply(gray)
-            preprocessed_images.append(cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR))
+            # Resize large images for faster processing
+            height, width = gray.shape
+            max_dimension = 2000  # Maximum width or height
             
-            # 2. Gaussian blur + threshold
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            _, thresh1 = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            preprocessed_images.append(cv2.cvtColor(thresh1, cv2.COLOR_GRAY2BGR))
+            if max(height, width) > max_dimension:
+                scale_factor = max_dimension / max(height, width)
+                new_width = int(width * scale_factor)
+                new_height = int(height * scale_factor)
+                gray = cv2.resize(gray, (new_width, new_height), interpolation=cv2.INTER_AREA)
+                self.logger.info(f"Resized image from {width}x{height} to {new_width}x{new_height} for faster processing")
             
-            # 3. Adaptive threshold
-            adaptive_thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-            preprocessed_images.append(cv2.cvtColor(adaptive_thresh, cv2.COLOR_GRAY2BGR))
+            # 1. Enhanced contrast using CLAHE (most effective)
+            if len(preprocessed_images) < max_versions:
+                clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
+                enhanced = clahe.apply(gray)
+                # Scale back to original size if needed
+                if max(height, width) > max_dimension:
+                    enhanced = cv2.resize(enhanced, (width, height), interpolation=cv2.INTER_CUBIC)
+                preprocessed_images.append(cv2.cvtColor(enhanced, cv2.COLOR_GRAY2BGR))
             
-            # 4. Morphological operations to clean up
-            kernel = np.ones((2,2), np.uint8)
-            morphed = cv2.morphologyEx(thresh1, cv2.MORPH_CLOSE, kernel)
-            preprocessed_images.append(cv2.cvtColor(morphed, cv2.COLOR_GRAY2BGR))
+            # 2. Binary threshold with OTSU (very effective for clear text)
+            if len(preprocessed_images) < max_versions:
+                _, thresh1 = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                # Scale back to original size if needed
+                if max(height, width) > max_dimension:
+                    thresh1 = cv2.resize(thresh1, (width, height), interpolation=cv2.INTER_NEAREST)
+                preprocessed_images.append(cv2.cvtColor(thresh1, cv2.COLOR_GRAY2BGR))
             
-            # 5. Noise removal
-            denoised = cv2.fastNlMeansDenoising(gray)
-            preprocessed_images.append(cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR))
+            # 3. Adaptive threshold (good for varying lighting)
+            if len(preprocessed_images) < max_versions:
+                try:
+                    # Use smaller block size for resized images
+                    block_size = 11 if max(height, width) <= max_dimension else 15
+                    adaptive_thresh = cv2.adaptiveThreshold(
+                        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, block_size, 2
+                    )
+                    # Scale back to original size if needed
+                    if max(height, width) > max_dimension:
+                        adaptive_thresh = cv2.resize(adaptive_thresh, (width, height), interpolation=cv2.INTER_NEAREST)
+                    preprocessed_images.append(cv2.cvtColor(adaptive_thresh, cv2.COLOR_GRAY2BGR))
+                except Exception as adaptive_error:
+                    self.logger.warning(f"Adaptive threshold failed: {adaptive_error}")
+            
+            # 4. Gaussian blur + threshold (for noisy images)
+            if len(preprocessed_images) < max_versions:
+                blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+                _, thresh2 = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                if max(height, width) > max_dimension:
+                    thresh2 = cv2.resize(thresh2, (width, height), interpolation=cv2.INTER_NEAREST)
+                preprocessed_images.append(cv2.cvtColor(thresh2, cv2.COLOR_GRAY2BGR))
+            
+            # 5. Morphological operations (for cleaning up)
+            if len(preprocessed_images) < max_versions:
+                try:
+                    kernel = np.ones((2,2), np.uint8)
+                    _, thresh_morph = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                    morphed = cv2.morphologyEx(thresh_morph, cv2.MORPH_CLOSE, kernel)
+                    if max(height, width) > max_dimension:
+                        morphed = cv2.resize(morphed, (width, height), interpolation=cv2.INTER_NEAREST)
+                    preprocessed_images.append(cv2.cvtColor(morphed, cv2.COLOR_GRAY2BGR))
+                except Exception as morph_error:
+                    self.logger.warning(f"Morphological processing failed: {morph_error}")
+            
+            # 6. Noise removal (computationally expensive, only if we have time/space)
+            if len(preprocessed_images) < max_versions and max_versions > 5:
+                try:
+                    # Use faster noise removal for large images
+                    h_value = 3 if max(height, width) > max_dimension else 10
+                    denoised = cv2.fastNlMeansDenoising(gray, None, h_value, 7, 21)
+                    if max(height, width) > max_dimension:
+                        denoised = cv2.resize(denoised, (width, height), interpolation=cv2.INTER_AREA)
+                    preprocessed_images.append(cv2.cvtColor(denoised, cv2.COLOR_GRAY2BGR))
+                except Exception as denoise_error:
+                    self.logger.warning(f"Denoising failed: {denoise_error}")
             
             self.logger.info(f"Generated {len(preprocessed_images)} preprocessed versions")
             

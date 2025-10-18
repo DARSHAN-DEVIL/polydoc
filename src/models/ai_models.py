@@ -580,27 +580,84 @@ class AIModelManager:
             question_words = set(question.lower().split())
             relevant_sentences = []
             
-            # Include more sentences for a comprehensive response
-            for sentence in sentences[:200]:  # Increased from 50 to 200 sentences
+            # Include more sentences for a comprehensive response with better scoring
+            for sentence in sentences[:300]:  # Increased from 200 to 300 sentences
                 sentence_words = set(sentence.lower().split())
-                # Calculate word overlap
+                sentence_clean = sentence.lower().strip()
+                
+                # Enhanced scoring system
+                score = 0
+                
+                # Word overlap score
                 overlap = len(question_words.intersection(sentence_words))
-                if overlap > 0:
-                    relevant_sentences.append((sentence, overlap))
+                score += overlap * 2  # Give more weight to word overlap
+                
+                # Question word proximity score
+                for q_word in question_words:
+                    if q_word in sentence_clean:
+                        # Bonus for exact match
+                        score += 1
+                        # Bonus for multiple occurrences
+                        score += sentence_clean.count(q_word) * 0.5
+                
+                # Length and quality score (prefer substantial sentences)
+                words_in_sentence = len(sentence_words)
+                if 10 <= words_in_sentence <= 50:  # Sweet spot for informative sentences
+                    score += 2
+                elif 5 <= words_in_sentence <= 80:
+                    score += 1
+                
+                # Keyword importance score
+                important_keywords = [
+                    'because', 'therefore', 'however', 'moreover', 'furthermore', 'additionally',
+                    'specifically', 'particularly', 'especially', 'notably', 'significantly',
+                    'according', 'analysis', 'result', 'conclusion', 'finding', 'evidence',
+                    'important', 'key', 'main', 'primary', 'essential', 'critical', 'vital'
+                ]
+                for keyword in important_keywords:
+                    if keyword in sentence_clean:
+                        score += 1.5
+                
+                if score > 0:
+                    relevant_sentences.append((sentence, score))
             
-            # Sort by relevance and take more top sentences
+            # Sort by relevance and take more top sentences for comprehensive answers
             relevant_sentences.sort(key=lambda x: x[1], reverse=True)
-            top_sentences = [s[0] for s in relevant_sentences[:8]]  # Increased from 4 to 8 relevant sentences
+            top_sentences = [s[0] for s in relevant_sentences[:12]]  # Increased from 8 to 12 relevant sentences
             
-            # Add relevant context if we have it
+            # Add relevant context with better organization
             if top_sentences:
-                response_parts.append("\n\nAdditional relevant information from the document:")
-                for i, sentence in enumerate(top_sentences, 1):
-                    response_parts.append(f"\n\n{i}. {sentence}.")
+                response_parts.append("\n\n📋 **Detailed Information from the Document:**")
+                
+                # Group sentences by relevance level
+                high_relevance = [s for s, score in relevant_sentences[:4] if score >= 4]
+                medium_relevance = [s for s, score in relevant_sentences[4:8] if score >= 2]
+                low_relevance = [s for s, score in relevant_sentences[8:12] if score >= 1]
+                
+                if high_relevance:
+                    response_parts.append("\n\n🔍 **Most Relevant Information:**")
+                    for i, sentence in enumerate(high_relevance, 1):
+                        response_parts.append(f"\n\n{i}. {sentence.strip()}.")
+                
+                if medium_relevance:
+                    response_parts.append("\n\n📖 **Supporting Information:**")
+                    for i, sentence in enumerate(medium_relevance, 1):
+                        response_parts.append(f"\n\n{i}. {sentence.strip()}.")
+                
+                if low_relevance:
+                    response_parts.append("\n\n📝 **Additional Context:**")
+                    for i, sentence in enumerate(low_relevance, 1):
+                        response_parts.append(f"\n\n{i}. {sentence.strip()}.")
+                        
             elif not qa_answer:
-                # If no QA answer and no relevant sentences, provide full context
-                # Remove the truncation to 500 characters
-                response_parts.append(f"\n\nHere's what I found in the document: {context}")
+                # If no QA answer and no relevant sentences, provide structured context
+                # Show more comprehensive information
+                context_chunks = [context[i:i+800] for i in range(0, len(context), 800)]
+                response_parts.append("\n\n📋 **Document Content Analysis:**")
+                for i, chunk in enumerate(context_chunks[:3], 1):  # Show up to 3 chunks
+                    response_parts.append(f"\n\n**Section {i}:**\n{chunk.strip()}")
+                if len(context_chunks) > 3:
+                    response_parts.append(f"\n\n*[Document contains {len(context_chunks)} sections total]*")
             
             # Combine all parts into a well-formatted response
             answer = "".join(response_parts)
@@ -715,12 +772,14 @@ class AIModelManager:
             return text[:max_length]
     
     def _format_response(self, response: str) -> str:
-        """Format AI response for better readability"""
+        """Format AI response for better readability with enhanced structure"""
         try:
             import re
             
             # Clean up the response
             formatted = response.strip()
+            
+            # Enhanced formatting for structured responses
             
             # Fix spacing around numbered lists
             formatted = re.sub(r'(\d+\.)([A-Z])', r'\1 \2', formatted)
@@ -731,24 +790,38 @@ class AIModelManager:
             # Add line breaks before bullet points
             formatted = re.sub(r'([.!?])\s*(•|‣|\*)', r'\1\n\n\2', formatted)
             
-            # Add line breaks before "Additional relevant information"
-            formatted = re.sub(r'(Additional relevant information)', r'\n\n**\1:**', formatted)
+            # Format section headers with proper markdown
+            formatted = re.sub(r'According to the document:', '**📄 According to the document:**', formatted)
+            formatted = re.sub(r'(Most Relevant Information|Supporting Information|Additional Context):', r'**\1:**', formatted)
+            formatted = re.sub(r'(Document Content Analysis|Detailed Information):', r'**\1:**', formatted)
             
-            # Format section headers
-            formatted = re.sub(r'According to the document:', '**According to the document:**', formatted)
+            # Add proper spacing around emoji headers
+            formatted = re.sub(r'(📋|🔍|📖|📝)\s*\*\*', r'\1 **', formatted)
             
-            # Ensure proper paragraph breaks
+            # Ensure proper paragraph breaks with intelligent sentence grouping
             sentences = re.split(r'([.!?]+)', formatted)
             result_parts = []
             current_part = ""
+            in_list = False
             
             for i, part in enumerate(sentences):
                 current_part += part
                 
-                # If this is a sentence ending and the current part is getting long
-                if part in ['.', '!', '?'] and len(current_part) > 150:
-                    result_parts.append(current_part.strip())
-                    current_part = ""
+                # Check if we're in a numbered list or bullet list
+                if re.search(r'\n\n\d+\.', current_part) or re.search(r'\n\n[•‣*]', current_part):
+                    in_list = True
+                
+                # If this is a sentence ending
+                if part in ['.', '!', '?']:
+                    # For lists, break after each item
+                    if in_list and len(current_part) > 50:
+                        result_parts.append(current_part.strip())
+                        current_part = ""
+                        in_list = False
+                    # For regular text, break when getting long
+                    elif not in_list and len(current_part) > 200:
+                        result_parts.append(current_part.strip())
+                        current_part = ""
                 elif i == len(sentences) - 1:  # Last part
                     result_parts.append(current_part.strip())
             
@@ -756,11 +829,18 @@ class AIModelManager:
             if len(result_parts) > 1:
                 formatted = '\n\n'.join([part for part in result_parts if part.strip()])
             
-            # Clean up multiple newlines
-            formatted = re.sub(r'\n{3,}', '\n\n', formatted)
+            # Clean up formatting issues
+            # Fix multiple newlines
+            formatted = re.sub(r'\n{4,}', '\n\n\n', formatted)
             
             # Clean up extra spaces
-            formatted = re.sub(r'  +', ' ', formatted)
+            formatted = re.sub(r' {2,}', ' ', formatted)
+            
+            # Fix spacing around headers
+            formatted = re.sub(r'\n\n\n(\*\*[^*]+\*\*)\n', r'\n\n\1\n\n', formatted)
+            
+            # Ensure proper spacing after periods in lists
+            formatted = re.sub(r'(\d+\.)([A-Za-z])', r'\1 \2', formatted)
             
             return formatted.strip()
             
@@ -1067,7 +1147,7 @@ class AIModelManager:
             }
     
     def _generate_simple_bilingual_summary(self, text: str, language: str) -> Dict[str, str]:
-        """Generate simple extractive summary when AI models are not available"""
+        """Generate comprehensive extractive summary when AI models are not available"""
         try:
             if not text or not text.strip():
                 return {
@@ -1078,31 +1158,96 @@ class AIModelManager:
                     'translation_confidence': 0.0
                 }
             
-            # Simple extractive approach
+            # Enhanced extractive approach with better content selection
             import re
             
             # Split into sentences using multiple delimiters
             sentences = re.split(r'[.!?।\n]+', text)
-            sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+            sentences = [s.strip() for s in sentences if s.strip() and len(s.strip()) > 15]  # Increased min length
             
             # If no sentences found, use the original text
             if not sentences:
-                summary = text[:300] + "..." if len(text) > 300 else text
+                summary = text[:800] + "..." if len(text) > 800 else text  # Increased from 300 to 800
             else:
-                # Take first few sentences up to reasonable length
+                # Enhanced sentence selection with scoring
+                scored_sentences = []
+                for i, sentence in enumerate(sentences):
+                    score = 0
+                    words = sentence.split()
+                    
+                    # Length score (prefer medium to long sentences)
+                    if 10 <= len(words) <= 30:
+                        score += 3
+                    elif 5 <= len(words) <= 50:
+                        score += 2
+                    elif len(words) > 3:
+                        score += 1
+                    
+                    # Position score (emphasize beginning and key sections)
+                    if i == 0:  # First sentence is very important
+                        score += 5
+                    elif i < len(sentences) // 4:  # First quarter
+                        score += 3
+                    elif i < len(sentences) // 2:  # First half
+                        score += 2
+                    elif i < 3 * len(sentences) // 4:  # Third quarter
+                        score += 1
+                    
+                    # Content quality score (look for important keywords)
+                    important_words = [
+                        'summary', 'conclusion', 'important', 'key', 'main', 'primary', 'significant',
+                        'analysis', 'result', 'finding', 'objective', 'purpose', 'method', 'approach',
+                        'सारांश', 'निष्कर्ष', 'महत्वपूर्ण', 'मुख्य', 'प्राथमिक', 'विश्लेषण', 'परिणाम',
+                        'ಸಾರಾಂಶ', 'ತೀರ್ಮಾನ', 'ಮಹತ್ವದ', 'ಮುಖ್ಯ', 'ಪ್ರಾಥಮಿಕ', 'ವಿಶ್ಲೇಷಣೆ', 'ಫಲಿತಾಂಶ'
+                    ]
+                    
+                    sentence_lower = sentence.lower()
+                    for word in important_words:
+                        if word.lower() in sentence_lower:
+                            score += 2
+                    
+                    scored_sentences.append((sentence, score, i))
+                
+                # Sort by score (descending) but maintain some original order
+                scored_sentences.sort(key=lambda x: (-x[1], x[2]))
+                
+                # Select sentences for a more comprehensive summary
                 summary_sentences = []
                 char_count = 0
-                max_chars = 300
+                max_chars = 1200  # Significantly increased from 300 to 1200
                 
-                for sentence in sentences[:5]:  # Max 5 sentences
-                    if char_count + len(sentence) < max_chars:
+                # Always include the first sentence if it exists
+                if sentences:
+                    first_sentence = sentences[0]
+                    summary_sentences.append(first_sentence)
+                    char_count += len(first_sentence) + 2
+                
+                # Add other high-scoring sentences
+                for sentence, score, orig_index in scored_sentences:
+                    if sentence not in summary_sentences and char_count + len(sentence) + 2 < max_chars:
                         summary_sentences.append(sentence)
-                        char_count += len(sentence) + 2  # +2 for punctuation
-                    else:
+                        char_count += len(sentence) + 2
+                    
+                    # Stop if we have enough content (at least 8-10 sentences or max chars reached)
+                    if len(summary_sentences) >= 10 or char_count >= max_chars * 0.9:
                         break
                 
+                # If we still don't have enough content, add more sentences sequentially
+                if len(summary_sentences) < 5 and char_count < max_chars * 0.6:
+                    for sentence in sentences:
+                        if sentence not in summary_sentences and char_count + len(sentence) + 2 < max_chars:
+                            summary_sentences.append(sentence)
+                            char_count += len(sentence) + 2
+                            
+                            if len(summary_sentences) >= 8:
+                                break
+                
                 if summary_sentences:
+                    # Reconstruct summary maintaining some logical flow
                     summary = '. '.join(summary_sentences).rstrip('.') + '.'
+                    # Clean up any double periods or spacing issues
+                    summary = re.sub(r'\.+', '.', summary)
+                    summary = re.sub(r'\s+', ' ', summary).strip()
                 else:
                     summary = sentences[0][:max_chars] + "..." if len(sentences[0]) > max_chars else sentences[0]
             
@@ -1116,19 +1261,54 @@ class AIModelManager:
                 else:
                     language = 'en'
             
-            # Format summary based on language
+            # Format summary based on language with enhanced structure
             indian_languages = {
                 'hi': 'Hindi', 'kn': 'Kannada', 'mr': 'Marathi', 'te': 'Telugu', 
                 'ta': 'Tamil', 'bn': 'Bengali', 'gu': 'Gujarati', 'pa': 'Punjabi',
                 'ml': 'Malayalam', 'or': 'Odia', 'as': 'Assamese'
             }
             
+            # Add document statistics to summary
+            word_count = len(text.split())
+            sentence_count = len(sentences) if sentences else 0
+            
             if language in indian_languages:
                 lang_name = indian_languages[language]
-                formatted_summary = f"📄 **Document Summary ({lang_name})**\n\n{summary}\n\n🔄 **English Translation**\n\n{summary}"
-                english_summary = f"📄 **Document Summary**\n\n{summary}"
+                formatted_summary = f"""📄 **Comprehensive Document Summary ({lang_name})**
+
+{summary}
+
+📊 **Document Statistics:**
+• Total Words: {word_count:,}
+• Total Sentences: {sentence_count}
+• Summary Coverage: {len(summary.split())}/{word_count} words ({(len(summary.split())/max(word_count,1)*100):.1f}%)
+
+🔄 **English Summary:**
+
+{summary}
+
+💡 **Note:** This is a comprehensive extractive summary capturing the key information from the document."""
+                english_summary = f"""📄 **Comprehensive Document Summary**
+
+{summary}
+
+📊 **Document Statistics:**
+• Total Words: {word_count:,}
+• Total Sentences: {sentence_count}
+• Summary Coverage: {len(summary.split())}/{word_count} words ({(len(summary.split())/max(word_count,1)*100):.1f}%)
+
+💡 **Note:** This is a comprehensive extractive summary capturing the key information from the document."""
             else:
-                formatted_summary = f"📄 **Document Summary**\n\n{summary}"
+                formatted_summary = f"""📄 **Comprehensive Document Summary**
+
+{summary}
+
+📊 **Document Statistics:**
+• Total Words: {word_count:,}
+• Total Sentences: {sentence_count}
+• Summary Coverage: {len(summary.split())}/{word_count} words ({(len(summary.split())/max(word_count,1)*100):.1f}%)
+
+💡 **Note:** This is a comprehensive extractive summary capturing the key information from the document."""
                 english_summary = formatted_summary
             
             return {
@@ -1394,52 +1574,94 @@ class DocumentAnalyzer:
         element_types_found: Dict[str, int], 
         page_info: Dict
     ) -> str:
-        """Create structured document information based on document type"""
+        """Create comprehensive structured document information based on document type"""
         try:
-            info_parts = ["\n\n📄 Document Analysis:"]
+            info_parts = ["\n\n📄 **Comprehensive Document Analysis:**"]
             
-            # Document type specific information
+            # Enhanced document type descriptions with more detail
             type_descriptions = {
-                'image_document': 'Image-based document with extracted text',
-                'scanned_image': 'Scanned document with handwritten content',
-                'presentation': 'Presentation with slides and structured content',
-                'document': 'Text document with paragraphs and sections',
-                'spreadsheet': 'Tabular data with structured information',
-                'mixed_content': 'Document with varied content types',
-                'processing_error': 'Document with processing issues',
-                'unknown': 'Document of undetermined type'
+                'image_document': 'Image-based document with OCR-extracted text content',
+                'scanned_image': 'Scanned document containing handwritten and printed text',
+                'presentation': 'PowerPoint presentation with slides, titles, and structured content',
+                'document': 'Text document with organized paragraphs, headings, and sections',
+                'pdf': 'PDF document with structured text and layout elements',
+                'spreadsheet': 'Tabular data document with rows, columns, and structured information',
+                'mixed_content': 'Multi-format document containing varied content types',
+                'processing_error': 'Document encountered processing issues during analysis',
+                'unknown': 'Document format could not be determined'
             }
             
-            info_parts.append(f"\n• Document Type: {type_descriptions.get(document_type, document_type)}")
-            info_parts.append(f"\n• Total Pages/Slides: {page_count}")
+            info_parts.append(f"\n\n🔍 **Document Classification:**")
+            info_parts.append(f"\n• **Type:** {type_descriptions.get(document_type, document_type)}")
+            info_parts.append(f"\n• **Total Pages/Slides:** {page_count}")
             
-            # Language information
+            # Enhanced language information with percentage breakdown
             if languages_found:
+                total_lang_elements = sum(languages_found.values())
                 primary_lang = max(languages_found, key=languages_found.get)
+                primary_percentage = (languages_found[primary_lang] / total_lang_elements) * 100
+                
                 lang_display = {
                     'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
                     'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'zh': 'Chinese',
-                    'ar': 'Arabic', 'hi': 'Hindi', 'unknown': 'Unknown'
+                    'ar': 'Arabic', 'hi': 'Hindi', 'kn': 'Kannada', 'te': 'Telugu',
+                    'ta': 'Tamil', 'bn': 'Bengali', 'gu': 'Gujarati', 'ml': 'Malayalam',
+                    'mr': 'Marathi', 'pa': 'Punjabi', 'or': 'Odia', 'as': 'Assamese',
+                    'unknown': 'Language Unknown'
                 }
-                info_parts.append(f"\n• Primary Language: {lang_display.get(primary_lang, primary_lang)}")
+                
+                info_parts.append(f"\n\n🌐 **Language Analysis:**")
+                info_parts.append(f"\n• **Primary Language:** {lang_display.get(primary_lang, primary_lang)} ({primary_percentage:.1f}%)")
+                
                 if len(languages_found) > 1:
-                    other_langs = [lang_display.get(lang, lang) for lang in languages_found.keys() if lang != primary_lang]
-                    info_parts.append(f"\n• Additional Languages: {', '.join(other_langs)}")
+                    info_parts.append(f"\n• **Additional Languages:**")
+                    for lang, count in sorted(languages_found.items(), key=lambda x: x[1], reverse=True)[1:4]:  # Show top 3 additional
+                        percentage = (count / total_lang_elements) * 100
+                        if percentage > 5:  # Only show if >5% of content
+                            info_parts.append(f"\n  - {lang_display.get(lang, lang)}: {percentage:.1f}%")
             
-            # Content analysis
+            # Enhanced content analysis with detailed breakdown
             total_elements = sum(element_types_found.values())
-            info_parts.append(f"\n• Content Elements: {total_elements} total")
+            info_parts.append(f"\n\n📊 **Content Structure Analysis:**")
+            info_parts.append(f"\n• **Total Content Elements:** {total_elements:,}")
             
-            # Show top element types
-            sorted_types = sorted(element_types_found.items(), key=lambda x: x[1], reverse=True)
-            for elem_type, count in sorted_types[:3]:  # Show top 3 element types
-                percentage = (count / total_elements) * 100
+            if total_elements > 0:
+                # Enhanced element type display with more categories
                 type_display = {
-                    'text': 'Text', 'paragraph': 'Paragraphs', 'heading': 'Headings',
-                    'table': 'Tables', 'handwriting': 'Handwritten text', 'number': 'Numbers',
-                    'error': 'Processing errors', 'placeholder': 'Empty sections'
+                    'text': '📝 Text Content', 'paragraph': '📄 Paragraphs', 'heading': '📋 Headings/Titles',
+                    'table': '📊 Tables/Data', 'handwriting': '✍️ Handwritten Text', 'number': '🔢 Numerical Data',
+                    'image': '🖼️ Images/Figures', 'footer': '📌 Footers', 'header': '📌 Headers',
+                    'notes': '📝 Notes/Comments', 'figure': '📈 Charts/Diagrams',
+                    'error': '⚠️ Processing Errors', 'placeholder': '❌ Empty Sections'
                 }
-                info_parts.append(f"\n  - {type_display.get(elem_type, elem_type)}: {count} ({percentage:.0f}%)")
+                
+                # Show all element types with significant presence (>2% or count >3)
+                info_parts.append(f"\n• **Content Breakdown:**")
+                sorted_types = sorted(element_types_found.items(), key=lambda x: x[1], reverse=True)
+                for elem_type, count in sorted_types:
+                    percentage = (count / total_elements) * 100
+                    if percentage > 2 or count > 3:  # Show significant elements
+                        info_parts.append(f"\n  - {type_display.get(elem_type, elem_type.title())}: {count:,} elements ({percentage:.1f}%)")
+                
+                # Calculate content density and quality metrics
+                text_elements = sum(count for elem_type, count in element_types_found.items() 
+                                 if elem_type in ['text', 'paragraph', 'heading'])
+                structural_elements = sum(count for elem_type, count in element_types_found.items() 
+                                        if elem_type in ['table', 'header', 'footer', 'figure'])
+                
+                info_parts.append(f"\n\n📈 **Quality Metrics:**")
+                info_parts.append(f"\n• **Text Content:** {text_elements:,} elements ({(text_elements/total_elements*100):.1f}%)")
+                info_parts.append(f"\n• **Structural Elements:** {structural_elements:,} elements ({(structural_elements/total_elements*100):.1f}%)")
+                
+                # Add page distribution analysis if multiple pages
+                if page_count > 1 and page_info:
+                    avg_elements_per_page = total_elements / page_count
+                    info_parts.append(f"\n• **Average Elements per Page:** {avg_elements_per_page:.1f}")
+                    
+                    # Find page with most content
+                    max_page = max(page_info.keys(), key=lambda p: len(page_info[p].get('text', [])))
+                    max_page_elements = len(page_info[max_page].get('text', []))
+                    info_parts.append(f"\n• **Most Content-Rich Page:** Page {max_page} ({max_page_elements} elements)")
             
             # Document type specific recommendations
             if document_type == 'image_document':
