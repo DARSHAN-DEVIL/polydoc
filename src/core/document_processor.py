@@ -5,6 +5,7 @@ Handles PDF, DOCX, PPTX, and image files with layout preservation
 
 import os
 import asyncio
+import time
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 from pathlib import Path
@@ -1351,7 +1352,6 @@ class DocumentProcessor:
         preprocessed_images = []
         
         try:
-            import time
             start_time = time.time()
             
             # Original image (always include)

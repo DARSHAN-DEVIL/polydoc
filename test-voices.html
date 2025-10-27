@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice Test - PolyDoc</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .voice-list {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .voice-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-left: 3px solid #4CAF50;
+        }
+        .hindi { border-left-color: #FF9800; }
+        .kannada { border-left-color: #2196F3; }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔊 Voice Verification Test</h1>
+    <p>This page tests if Hindi and Kannada voices are available in your browser.</p>
+
+    <button onclick="checkVoices()">🔍 Check Available Voices</button>
+    <button onclick="testHindi()">🇮🇳 Test Hindi</button>
+    <button onclick="testKannada()">🇮🇳 Test Kannada</button>
+    <button onclick="testEnglish()">🇺🇸 Test English</button>
+    <button onclick="stopSpeaking()">⏹️ Stop</button>
+
+    <div id="status"></div>
+    <div id="voices" class="voice-list"></div>
+
+    <h3>Test Texts:</h3>
+    <div style="background: #f9f9f9; padding: 15px; border-radius: 5px;">
+        <p><strong>Hindi:</strong> नमस्ते। यह हिंदी आवाज का परीक्षण है।</p>
+        <p><strong>Kannada:</strong> ನಮಸ್ಕಾರ। ಇದು ಕನ್ನಡ ಧ್ವನಿ ಪರೀಕ್ಷೆ.</p>
+        <p><strong>English:</strong> Hello. This is an English voice test.</p>
+    </div>
+
+    <script>
+        function showStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function checkVoices() {
+            const synth = window.speechSynthesis;
+            const voices = synth.getVoices();
+            
+            console.log('All available voices:', voices);
+            
+            const hindiVoices = voices.filter(v => v.lang.startsWith('hi'));
+            const kannadaVoices = voices.filter(v => v.lang.startsWith('kn'));
+            const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+            
+            let html = `<h3>Total Voices: ${voices.length}</h3>`;
+            
+            // Hindi voices
+            html += `<h4>Hindi Voices: ${hindiVoices.length}</h4>`;
+            if (hindiVoices.length > 0) {
+                hindiVoices.forEach(v => {
+                    html += `<div class="voice-item hindi">
+                        <strong>${v.name}</strong> (${v.lang})
+                        ${v.default ? ' - DEFAULT' : ''}
+                        ${v.localService ? ' - Local' : ' - Remote'}
+                    </div>`;
+                });
+            } else {
+                html += `<div class="status error">❌ No Hindi voices found!</div>`;
+            }
+            
+            // Kannada voices
+            html += `<h4>Kannada Voices: ${kannadaVoices.length}</h4>`;
+            if (kannadaVoices.length > 0) {
+                kannadaVoices.forEach(v => {
+                    html += `<div class="voice-item kannada">
+                        <strong>${v.name}</strong> (${v.lang})
+                        ${v.default ? ' - DEFAULT' : ''}
+                        ${v.localService ? ' - Local' : ' - Remote'}
+                    </div>`;
+                });
+            } else {
+                html += `<div class="status error">❌ No Kannada voices found!</div>`;
+            }
+            
+            // English voices (just count)
+            html += `<h4>English Voices: ${englishVoices.length}</h4>`;
+            englishVoices.slice(0, 3).forEach(v => {
+                html += `<div class="voice-item">
+                    <strong>${v.name}</strong> (${v.lang})
+                </div>`;
+            });
+            if (englishVoices.length > 3) {
+                html += `<div style="padding: 8px;">... and ${englishVoices.length - 3} more</div>`;
+            }
+            
+            document.getElementById('voices').innerHTML = html;
+            
+            // Status message
+            if (hindiVoices.length > 0 && kannadaVoices.length > 0) {
+                showStatus('✅ SUCCESS! Both Hindi and Kannada voices are available!', 'success');
+            } else if (hindiVoices.length > 0 || kannadaVoices.length > 0) {
+                showStatus('⚠️ WARNING: Only some Indian language voices found. Check if language packs are fully installed.', 'error');
+            } else {
+                showStatus('❌ ERROR: No Indian language voices found! Language packs may not be installed or browser needs restart.', 'error');
+            }
+        }
+
+        function speak(text, lang) {
+            stopSpeaking();
+            
+            const synth = window.speechSynthesis;
+            const voices = synth.getVoices();
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Find voice for language
+            const matchingVoices = voices.filter(v => v.lang.startsWith(lang));
+            
+            if (matchingVoices.length === 0) {
+                showStatus(`❌ No voice found for language: ${lang}. Using default voice (may not work for this script).`, 'error');
+                console.error('No voice found for', lang);
+                console.log('Available voices:', voices.map(v => v.lang));
+            } else {
+                utterance.voice = matchingVoices[0];
+                showStatus(`🔊 Speaking with: ${matchingVoices[0].name} (${matchingVoices[0].lang})`, 'success');
+                console.log('Using voice:', matchingVoices[0]);
+            }
+            
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            utterance.onstart = () => {
+                console.log('Speech started');
+            };
+            
+            utterance.onend = () => {
+                console.log('Speech ended');
+                showStatus('✅ Speech completed', 'success');
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('Speech error:', event);
+                showStatus(`❌ Speech error: ${event.error}`, 'error');
+            };
+            
+            synth.speak(utterance);
+        }
+
+        function testHindi() {
+            speak('नमस्ते। यह हिंदी आवाज का परीक्षण है। कृत्रिम बुद्धिमत्ता भविष्य की तकनीक है।', 'hi');
+        }
+
+        function testKannada() {
+            speak('ನಮಸ್ಕಾರ। ಇದು ಕನ್ನಡ ಧ್ವನಿ ಪರೀಕ್ಷೆ. ಕೃತಕ ಬುದ್ಧಿವಂತಿಕೆ ಭವಿಷ್ಯದ ತಂತ್ರಜ್ಞಾನ.', 'kn');
+        }
+
+        function testEnglish() {
+            speak('Hello. This is an English voice test. Artificial Intelligence is the technology of the future.', 'en');
+        }
+
+        function stopSpeaking() {
+            window.speechSynthesis.cancel();
+            showStatus('⏹️ Stopped', 'info');
+        }
+
+        // Auto-load voices when page loads
+        window.addEventListener('load', () => {
+            // Wait for voices to load
+            if (speechSynthesis.getVoices().length === 0) {
+                speechSynthesis.addEventListener('voiceschanged', () => {
+                    checkVoices();
+                }, { once: true });
+            } else {
+                checkVoices();
+            }
+        });
+    </script>
+</body>
+</html>

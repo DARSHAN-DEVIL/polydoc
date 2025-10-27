@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileUp, 
@@ -10,7 +10,11 @@ import {
   Download,
   Share2,
   User,
-  ChevronDown
+  ChevronDown,
+  Volume2,
+  VolumeX,
+  Pause,
+  Play
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -21,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
 import { useLenis } from '@/hooks/useLenis';
 import FloatingParticles from '@/components/FloatingParticles';
+import TextToSpeech from '@/utils/textToSpeech';
 
 // File Display Component
 function FileDisplay({ fileName, onClear }) {
@@ -312,12 +317,38 @@ export default function Dashboard() {
   const messagesEndRef = useRef(null);
   const userMenuRef = useRef(null);
   
+  // TTS state
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [currentlyPlaying, setCurrentlyPlaying] = useState(null);
+  const [ttsState, setTtsState] = useState({ playing: false, paused: false });
+  const ttsRef = useRef(null);
+  
   // Initialize Lenis smooth scrolling
   useLenis({
     duration: 1.2,
     easing: (t) => 1 - Math.pow(1 - t, 3),
     smooth: true
   });
+  
+  // Initialize TTS
+  useEffect(() => {
+    if (TextToSpeech.isSupported()) {
+      ttsRef.current = new TextToSpeech();
+      ttsRef.current.onStateChange = (state) => {
+        setTtsState(state);
+      };
+      console.log('Text-to-Speech initialized');
+    } else {
+      console.warn('Text-to-Speech not supported in this browser');
+      setTtsEnabled(false);
+    }
+    
+    return () => {
+      if (ttsRef.current) {
+        ttsRef.current.stop();
+      }
+    };
+  }, []);
   
   // Handle sign out
   const handleSignOut = async () => {
@@ -622,7 +653,8 @@ export default function Dashboard() {
         const successMessage = `✅ Document uploaded successfully!`;
         const summaryMessage = uploadResult.summary ? `📄 Summary: ${uploadResult.summary}` : 'Document processed successfully.';
         
-        setMessages((prev) => [...prev, 
+        setMessages((prev) => [
+          ...prev, 
           { 
             text: successMessage, 
             isUser: false, 
@@ -636,6 +668,8 @@ export default function Dashboard() {
             type: 'summary'
           }
         ]);
+        
+        // Removed auto-play - user will manually click to play
         
         // If there's a message, send it as chat
         if (message.trim()) {
@@ -706,6 +740,64 @@ export default function Dashboard() {
   const clearChat = () => {
     setMessages([]);
     setCurrentDocument(null);
+    // Stop TTS when clearing chat
+    if (ttsRef.current) {
+      ttsRef.current.stop();
+      setCurrentlyPlaying(null);
+    }
+  };
+  
+  // TTS Control Functions
+  const handlePlayTTS = async (text, messageIndex) => {
+    if (!ttsRef.current || !ttsEnabled) return;
+    
+    // If already playing this message, stop it
+    if (currentlyPlaying === messageIndex) {
+      ttsRef.current.stop();
+      setCurrentlyPlaying(null);
+      return;
+    }
+    
+    // Stop any current playback
+    ttsRef.current.stop();
+    setCurrentlyPlaying(messageIndex);
+    
+    try {
+      await ttsRef.current.speak(text, {
+        rate: 0.9,
+        pitch: 1.0,
+        volume: 1.0,
+        onEnd: () => {
+          setCurrentlyPlaying(null);
+        },
+        onError: (error) => {
+          console.error('TTS error:', error);
+          setCurrentlyPlaying(null);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to play TTS:', error);
+      setCurrentlyPlaying(null);
+    }
+  };
+  
+  const handlePauseTTS = () => {
+    if (ttsRef.current) {
+      ttsRef.current.pause();
+    }
+  };
+  
+  const handleResumeTTS = () => {
+    if (ttsRef.current) {
+      ttsRef.current.resume();
+    }
+  };
+  
+  const handleStopTTS = () => {
+    if (ttsRef.current) {
+      ttsRef.current.stop();
+      setCurrentlyPlaying(null);
+    }
   };
   
   const handleDownload = async () => {
@@ -844,6 +936,34 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
           </div>
           
           <div className="flex items-center gap-4">
+            {/* TTS Toggle */}
+            {TextToSpeech.isSupported() && (
+              <motion.button
+                onClick={() => {
+                  setTtsEnabled(!ttsEnabled);
+                  if (ttsEnabled && ttsRef.current) {
+                    ttsRef.current.stop();
+                    setCurrentlyPlaying(null);
+                  }
+                }}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  ttsEnabled
+                    ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/20"
+                    : "text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+                )}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title={ttsEnabled ? "Disable Text-to-Speech" : "Enable Text-to-Speech"}
+              >
+                {ttsEnabled ? (
+                  <Volume2 className="h-5 w-5" />
+                ) : (
+                  <VolumeX className="h-5 w-5" />
+                )}
+              </motion.button>
+            )}
+            
             <ThemeToggle />
             
             <div className="relative" ref={userMenuRef}>
@@ -984,7 +1104,7 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
               </div>
 
               {/* Messages */}
-              <div className="p-4 h-[400px] overflow-y-auto scroll-smooth chat-container" 
+              <div className="p-4 h-[600px] overflow-y-auto scroll-smooth chat-container" 
                    onWheel={(e) => {
                      // Enhanced mouse wheel scrolling
                      const container = e.currentTarget;
@@ -1009,7 +1129,7 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
                           className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[80%] p-4 rounded-2xl animate-fade-in ${
+                            className={`max-w-[80%] rounded-2xl animate-fade-in ${
                               msg.isUser
                                 ? "bg-blue-600 text-white rounded-tr-none shadow-lg"
                                 : msg.type === 'success'
@@ -1019,13 +1139,63 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
                                 : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-none"
                             }`}
                           >
-                            <p className={`text-sm leading-relaxed ${
-                              msg.type === 'summary' ? 'whitespace-pre-wrap' : ''
-                            }`}>{msg.text}</p>
-                            {msg.timestamp && (
-                              <p className="text-xs opacity-70 mt-2">
-                                {new Date(msg.timestamp).toLocaleTimeString()}
-                              </p>
+                            <div className="p-4">
+                              <p className={`text-sm leading-relaxed ${
+                                msg.type === 'summary' ? 'whitespace-pre-wrap' : ''
+                              }`}>{msg.text}</p>
+                              {msg.timestamp && (
+                                <p className="text-xs opacity-70 mt-2">
+                                  {new Date(msg.timestamp).toLocaleTimeString()}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* TTS Controls for non-user messages - Always visible when TTS enabled */}
+                            {!msg.isUser && ttsEnabled && msg.text && !msg.text.includes('❌') && !msg.text.includes('failed') && (
+                              <div className="px-4 pb-3 flex items-center gap-2 border-t border-current/10 pt-3 mt-2">
+                                {currentlyPlaying === index ? (
+                                  <>
+                                    {/* Playing Controls */}
+                                    {ttsState.paused ? (
+                                      <button
+                                        onClick={handleResumeTTS}
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium"
+                                        title="Resume"
+                                      >
+                                        <Play className="w-4 h-4" />
+                                        Resume
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={handlePauseTTS}
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium"
+                                        title="Pause"
+                                      >
+                                        <Pause className="w-4 h-4" />
+                                        Pause
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={handleStopTTS}
+                                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors text-sm font-medium"
+                                      title="Stop"
+                                    >
+                                      <VolumeX className="w-4 h-4" />
+                                      Stop
+                                    </button>
+                                    <span className="text-xs opacity-70 ml-2 animate-pulse">🔊 Playing...</span>
+                                  </>
+                                ) : (
+                                  <button
+                                    onClick={() => handlePlayTTS(msg.text, index)}
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors text-sm font-medium"
+                                    title="Listen to this message"
+                                  >
+                                    <Volume2 className="w-4 h-4" />
+                                    Listen
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>

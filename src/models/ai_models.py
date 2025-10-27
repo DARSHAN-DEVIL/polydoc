@@ -117,19 +117,7 @@ class AIModelManager:
             self.summarizer = pipeline(
                 "summarization",
                 model="facebook/bart-large-cnn",
-                device=-1,
-                model_kwargs={
-                    "torch_dtype": "float32", 
-                    "low_cpu_mem_usage": True,
-                    "cache_dir": cache_dir,
-                    "local_files_only": False,  # Allow download if needed but prefer cache
-                    "force_download": False  # Never force re-download
-                },
-                tokenizer_kwargs={
-                    "use_fast": True, 
-                    "clean_up_tokenization_spaces": True,
-                    "cache_dir": cache_dir
-                }
+                device=-1
             )
             self.models_loaded['summarizer'] = True
             self.logger.info("✅ Summarization model loaded successfully")
@@ -142,13 +130,7 @@ class AIModelManager:
                 self.summarizer = pipeline(
                     "summarization",
                     model="sshleifer/distilbart-cnn-12-6",
-                    device=-1,
-                    model_kwargs={
-                        "low_cpu_mem_usage": True,
-                        "cache_dir": cache_dir,
-                        "force_download": False
-                    },
-                    tokenizer_kwargs={"cache_dir": cache_dir}
+                    device=-1
                 )
                 self.models_loaded['summarizer'] = True
                 self.logger.info("✅ Fallback summarization model loaded")
@@ -344,23 +326,28 @@ class AIModelManager:
         # Define Indian languages supported for bilingual summary
         indian_languages = {'hi', 'kn', 'mr', 'te', 'ta', 'bn', 'gu', 'pa', 'ml', 'or', 'as'}
         
-        # Enhanced fallback for Indian languages
-        if not self.summarizer or language in indian_languages:
-            # For Indian languages, create an extractive summary (safer approach)
+        # Use extractive summarization for Indian languages (BART doesn't support them well)
+        # Use AI abstractive for English (BART is trained on English)
+        if not self.summarizer:
+            # AI model not loaded, use extractive summary
+            return self._create_extractive_summary(text, language, max_length, start_time)
+        elif language in indian_languages:
+            # For Indian languages, use extractive (more reliable than AI for non-English)
+            self.logger.info(f"Using extractive summarization for {language} (AI model doesn't support this language well)")
             return self._create_extractive_summary(text, language, max_length, start_time)
         
         try:
+            self.logger.info(f"summarize_text called: text_len={len(text)}, max_len={max_length}, min_len={min_length}, lang={language}")
+            
             # Function to generate a single summary
             def generate_single_summary(input_text, max_len, min_len):
-                # For non-Indian languages, try the neural model
+                # Try the neural model for all languages
                 try:
+                    self.logger.info(f"Calling BART with input length: {len(input_text)} chars")
                     # Chunk text if too long (max ~1024 tokens)
                     max_chunk_size = 800  # Reduced for better processing
                     if len(input_text) > max_chunk_size:
-                        # For long texts, use extractive approach for Indian languages
-                        if language in indian_languages:
-                            return self._extract_key_sentences(input_text, max_len)
-                        
+                        # Process long texts in chunks
                         chunks = [input_text[i:i+max_chunk_size] for i in range(0, len(input_text), max_chunk_size)]
                         chunk_summaries = []
                         
@@ -394,9 +381,14 @@ class AIModelManager:
                             min_length=min_len,
                             do_sample=False
                         )
-                        return result[0]['summary_text']
+                        summary_text = result[0]['summary_text']
+                        self.logger.info(f"BART output: {summary_text[:150]}...")
+                        return summary_text
                 except Exception as e:
                     # Fallback to extractive summary if neural model fails
+                    self.logger.error(f"BART model failed with error: {e}")
+                    import traceback
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
                     return self._extract_key_sentences(input_text, max_len)
             
             # Generate primary summary in original language
@@ -1128,10 +1120,108 @@ class AIModelManager:
             return None
     
     async def generate_dual_language_summary(self, text: str, detected_language: str = None) -> Dict[str, str]:
-        """Generate summary in both original language and English with better fallback support"""
+        """Generate summary in both original language and English with AI abstractive summarization"""
         try:
-            # Always use simple extractive summarization (most reliable)
-            return self._generate_simple_bilingual_summary(text, detected_language or 'en')
+            language = detected_language or 'en'
+            
+            # Log which method will be used
+            if self.summarizer:
+                self.logger.info(f"Using AI abstractive summarization for language: {language}")
+            else:
+                self.logger.warning(f"Summarizer model not available, will use extractive method")
+            
+            # Try AI abstractive summarization first if model is available
+            if self.summarizer:
+                try:
+                    self.logger.info(f"Text length being summarized: {len(text)} chars")
+                    # Use AI model to generate actual summary (not just extract sentences)
+                    # Use reasonable length for comprehensive yet concise summary
+                    summary_response = await self.summarize_text(
+                        text,
+                        max_length=250,  # Allow longer summaries (in tokens, ~3-4 sentences)
+                        min_length=80,   # Ensure substantial content
+                        language=language
+                    )
+                    
+                    # Extract the summarized content
+                    ai_summary = summary_response.content
+                    self.logger.info(f"AI summary length: {len(ai_summary)} chars")
+                    self.logger.info(f"AI summary preview: {ai_summary[:200]}...")
+                    
+                    # Clean up any metadata headers if present
+                    if '**' in ai_summary:
+                        # If it has headers like "**Summary in Hindi:**", extract just the summary text
+                        parts = ai_summary.split('\n\n')
+                        clean_parts = []
+                        for part in parts:
+                            # Remove header lines but keep the actual summary content
+                            lines = part.split('\n')
+                            content_lines = [l for l in lines if not l.strip().startswith('**') or ':' not in l]
+                            if content_lines:
+                                clean_parts.append('\n'.join(content_lines))
+                        ai_summary = '\n\n'.join(clean_parts).strip()
+                    
+                    # For non-English content, we already have bilingual from summarize_text
+                    # For English, just use the same summary
+                    if language == 'en':
+                        return {
+                            'original': ai_summary,
+                            'english': ai_summary,
+                            'original_language': language,
+                            'translation_needed': False,
+                            'translation_confidence': 1.0,
+                            'method': 'ai_abstractive'
+                        }
+                    else:
+                        # For Indian languages, generate English version too
+                        try:
+                            english_response = await self.summarize_text(
+                                text,
+                                max_length=250,
+                                min_length=80,
+                                language='en'  # Force English
+                            )
+                            english_summary = english_response.content
+                            
+                            # Clean English summary too
+                            if '**' in english_summary:
+                                parts = english_summary.split('\n\n')
+                                clean_parts = []
+                                for part in parts:
+                                    lines = part.split('\n')
+                                    content_lines = [l for l in lines if not l.strip().startswith('**') or ':' not in l]
+                                    if content_lines:
+                                        clean_parts.append('\n'.join(content_lines))
+                                english_summary = '\n\n'.join(clean_parts).strip()
+                            
+                            return {
+                                'original': ai_summary,
+                                'english': english_summary,
+                                'original_language': language,
+                                'translation_needed': True,
+                                'translation_confidence': 0.85,
+                                'method': 'ai_abstractive_bilingual'
+                            }
+                        except Exception as english_error:
+                            self.logger.warning(f"English summary failed, using original: {english_error}")
+                            return {
+                                'original': ai_summary,
+                                'english': ai_summary,
+                                'original_language': language,
+                                'translation_needed': False,
+                                'translation_confidence': 0.7,
+                                'method': 'ai_abstractive_single'
+                            }
+                    
+                except Exception as ai_error:
+                    self.logger.error(f"AI summarization failed, falling back to extractive: {ai_error}")
+                    import traceback
+                    self.logger.error(f"Traceback: {traceback.format_exc()}")
+                    # Fall through to extractive method
+            
+            # Fallback to extractive summarization if AI model unavailable or failed
+            self.logger.info("Using extractive summarization as fallback")
+            return self._generate_simple_bilingual_summary(text, language)
             
         except Exception as e:
             self.logger.error(f"Error generating dual-language summary: {e}")
@@ -1456,6 +1546,17 @@ class DocumentAnalyzer:
             
             combined_text = ' '.join(all_text)
             
+            # Log text length for debugging
+            self.logger.info(f"Document text length: {len(combined_text)} chars, {len(all_text)} elements")
+            
+            # Limit text length to prevent model overload (BART has ~1024 token limit)
+            # Approximate: 1 token ≈ 4 chars, so ~4000 chars max
+            max_text_length = 4000
+            if len(combined_text) > max_text_length:
+                self.logger.info(f"Text too long ({len(combined_text)} chars), truncating to {max_text_length} chars")
+                # Take first 2000 chars and last 2000 chars for better coverage
+                combined_text = combined_text[:2000] + "\n\n[...middle content omitted...]\n\n" + combined_text[-2000:]
+            
             # Detect primary language
             primary_language = 'en'  # Default
             if languages_found:
@@ -1469,12 +1570,14 @@ class DocumentAnalyzer:
             
             # Generate dual-language summary if requested
             if dual_language:
+                self.logger.info(f"Generating summary for language: {primary_language}")
                 summary_result = await self.ai_models.generate_dual_language_summary(
                     combined_text, primary_language
                 )
+                self.logger.info(f"Summary generated using method: {summary_result.get('method', 'unknown')}")
                 
-                # Create structured document information based on document type
-                document_info = self._create_structured_document_info(
+            # Create enhanced document metadata with statistics
+                document_metadata = self._create_enhanced_document_metadata(
                     document_type, len(page_info), languages_found, element_types_found, page_info
                 )
                 
@@ -1483,8 +1586,8 @@ class DocumentAnalyzer:
                 english_summary = summary_result.get('english', summary_result.get('english_summary', original_summary))
                 
                 return {
-                    'summary': original_summary + document_info,
-                    'english_summary': english_summary + document_info,
+                    'summary': original_summary + document_metadata,
+                    'english_summary': english_summary + document_metadata,
                     'original_language': summary_result.get('original_language', primary_language),
                     'translation_needed': summary_result.get('translation_needed', False),
                     'translation_confidence': summary_result.get('translation_confidence', 0.0),
@@ -1565,6 +1668,108 @@ class DocumentAnalyzer:
         except Exception as e:
             self.logger.warning(f"Error determining document type: {e}")
             return 'unknown'
+    
+    def _create_lightweight_document_metadata(
+        self,
+        document_type: str,
+        page_count: int,
+        languages_found: Dict[str, int]
+    ) -> str:
+        """Create lightweight document metadata without verbose analysis"""
+        try:
+            metadata_parts = []
+            
+            # Add simple document info
+            if page_count > 0:
+                metadata_parts.append(f"\n\n📄 *Document: {page_count} page{'s' if page_count > 1 else ''}*")
+            
+            # Add primary language if detected
+            if languages_found:
+                total_lang_elements = sum(languages_found.values())
+                primary_lang = max(languages_found, key=languages_found.get)
+                
+                lang_display = {
+                    'en': 'English', 'hi': 'Hindi', 'kn': 'Kannada', 'te': 'Telugu',
+                    'ta': 'Tamil', 'bn': 'Bengali', 'gu': 'Gujarati', 'ml': 'Malayalam',
+                    'mr': 'Marathi', 'pa': 'Punjabi', 'or': 'Odia', 'as': 'Assamese'
+                }
+                
+                if primary_lang in lang_display:
+                    metadata_parts.append(f" • {lang_display[primary_lang]}")
+            
+            return ''.join(metadata_parts)
+            
+        except Exception as e:
+            self.logger.warning(f"Error creating lightweight metadata: {e}")
+            return f"\n\n📄 *{page_count} page(s)*"
+    
+    def _create_enhanced_document_metadata(
+        self,
+        document_type: str,
+        page_count: int,
+        languages_found: Dict[str, int],
+        element_types_found: Dict[str, int],
+        page_info: Dict[int, Dict]
+    ) -> str:
+        """Create enhanced document metadata with statistics"""
+        try:
+            metadata_parts = []
+            
+            # Add document header
+            metadata_parts.append(f"\n\n📄 **Document Statistics:**")
+            
+            # Page count
+            metadata_parts.append(f"\n• Pages: {page_count}")
+            
+            # Primary language
+            if languages_found:
+                primary_lang = max(languages_found, key=languages_found.get)
+                lang_display = {
+                    'en': 'English', 'hi': 'Hindi', 'kn': 'Kannada', 'te': 'Telugu',
+                    'ta': 'Tamil', 'bn': 'Bengali', 'gu': 'Gujarati', 'ml': 'Malayalam',
+                    'mr': 'Marathi', 'pa': 'Punjabi', 'or': 'Odia', 'as': 'Assamese'
+                }
+                lang_name = lang_display.get(primary_lang, primary_lang.upper())
+                metadata_parts.append(f"\n• Language: {lang_name}")
+            
+            # Element count and type breakdown
+            total_elements = sum(element_types_found.values())
+            if total_elements > 0:
+                metadata_parts.append(f"\n• Total Elements: {total_elements}")
+                
+                # Show significant element types
+                type_display = {
+                    'text': 'Text', 'paragraph': 'Paragraphs', 'heading': 'Headings',
+                    'table': 'Tables', 'image': 'Images', 'figure': 'Figures'
+                }
+                
+                significant_types = []
+                for elem_type, count in sorted(element_types_found.items(), key=lambda x: x[1], reverse=True):
+                    percentage = (count / total_elements) * 100
+                    if percentage > 5 or count > 2:  # Show if >5% or count >2
+                        type_name = type_display.get(elem_type, elem_type.title())
+                        significant_types.append(f"{type_name}: {count}")
+                        if len(significant_types) >= 3:  # Limit to top 3 types
+                            break
+                
+                if significant_types:
+                    metadata_parts.append(f"\n• Content: {', '.join(significant_types)}")
+            
+            # Document type
+            doc_type_display = {
+                'document': 'Text Document', 'presentation': 'Presentation',
+                'spreadsheet': 'Spreadsheet', 'image_document': 'Image/Scanned Document',
+                'scanned_image': 'Scanned Document with Handwriting',
+                'mixed_content': 'Mixed Content', 'processing_error': 'Partially Processed'
+            }
+            doc_type_name = doc_type_display.get(document_type, document_type.replace('_', ' ').title())
+            metadata_parts.append(f"\n• Type: {doc_type_name}")
+            
+            return ''.join(metadata_parts)
+            
+        except Exception as e:
+            self.logger.warning(f"Error creating lightweight metadata: {e}")
+            return f"\n\n📄 *{page_count} page(s)*"
     
     def _create_structured_document_info(
         self, 

@@ -366,15 +366,24 @@ async def upload_document(
         )
         
         # Generate summary - handle both dict and string returns
+        logger.info(f"Generating summary for document {document_id} with {len(processed_doc.elements)} elements")
         summary_result = await document_analyzer.generate_document_summary(
             processed_doc.elements, 
             summary_length='medium'
         )
+        logger.info(f"Summary result type: {type(summary_result)}, is_dict: {isinstance(summary_result, dict)}")
         
         # Extract properly formatted summary text
         if isinstance(summary_result, dict):
             # Use English summary if available, otherwise use original
-            summary = summary_result.get('english_summary', summary_result.get('summary', 'Summary generation failed'))
+            # Try multiple keys to ensure we get the English version
+            summary = (
+                summary_result.get('english_summary') or 
+                summary_result.get('english') or 
+                summary_result.get('summary') or 
+                'Summary generation failed'
+            )
+            logger.info(f"Summary extracted. Keys available: {list(summary_result.keys())}")
         else:
             summary = str(summary_result) if summary_result else "Summary generation failed"
         

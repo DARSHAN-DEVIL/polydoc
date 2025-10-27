@@ -548,17 +548,17 @@ class MongoDBStore:
         question: str,
         user_id: str,
         document_id: Optional[str] = None,
-        max_context_length: int = 2000
+        max_context_length: int = 4000  # Increased from 2000 to 4000
     ) -> Tuple[str, List[int]]:
         """Get relevant context for answering a question with robust fallback mechanisms"""
         try:
             self.logger.info(f"Getting context for question: '{question}' for user: {user_id}")
             
-            # First try vector search for relevant chunks
+            # First try vector search for relevant chunks with increased top_k
             results = await self.search(
                 query=question,
                 user_id=user_id,
-                top_k=10,
+                top_k=15,  # Increased from 10 to 15 for more comprehensive context
                 document_id=document_id
             )
             
@@ -571,7 +571,7 @@ class MongoDBStore:
                     question=question,
                     user_id=user_id,
                     document_id=document_id,
-                    top_k=10
+                    top_k=15  # Increased from 10 to 15
                 )
                 
             # If still no results, get any available chunks for the user/document
@@ -580,21 +580,21 @@ class MongoDBStore:
                 results = await self._get_any_chunks(
                     user_id=user_id,
                     document_id=document_id,
-                    limit=5
+                    limit=10  # Increased from 5 to 10
                 )
             
             if not results:
                 self.logger.error(f"No content found for user {user_id}, document {document_id}")
                 return "", []
             
-            # Build context from available chunks
+            # Build comprehensive context from available chunks
             context_parts = []
             page_numbers = set()
             current_length = 0
             
             for result in results:
-                # For fallback results, skip low relevance only if we have many results
-                if hasattr(result, 'relevance') and result.relevance == 'low' and len(context_parts) > 3:
+                # Be more lenient with low relevance chunks to ensure complete information
+                if hasattr(result, 'relevance') and result.relevance == 'low' and len(context_parts) > 8:
                     continue
                 
                 chunk_text = result.chunk.text if hasattr(result, 'chunk') else result.get('text', '')
