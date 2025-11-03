@@ -40,6 +40,42 @@ Relevance to PolyDoc: We adopt the hierarchical principle (early script awarenes
 - Bilingual outputs for Indic scripts: accessibility and verification.
 - Full local, cost‑free stack enabling reproducibility and data privacy.
 
+#### Hybrid language detector: algorithm and hyperparameters
+We combine langdetect’s probabilities with Unicode script composition for Indic scripts. If langdetect’s top prediction is among supported languages, we return it; otherwise we back off to script composition with a low threshold for mixed content.
+
+- Supported languages: {hi, kn, mr, te, ta, bn, gu, pa, ml, or, as, en}
+- Script ranges: Devanagari, Bengali/Assamese, Gurmukhi, Gujarati, Odia, Tamil, Telugu, Kannada, Malayalam, Latin
+- Key thresholds: langdetect confidence > 0.4; script fraction > 0.10 for mixed content, > 0.20 for dominant script
+- Script→language mapping: Devanagari→{hi,mr} (default hi), Bengali→{bn,as} (default bn), others 1–1
+- Seeds: DetectorFactory.seed = {0,1,2} for runs
+
+Pseudo-code:
+
+```
+function hybrid_detect(text):
+  cleaned = clean(text)  # strip urls/emails/digits/punct, collapse whitespace
+  if len(cleaned) < 3: return EN_DEFAULT
+  try:
+    probs = langdetect.detect_langs(cleaned)
+    cand = argmax_over_subset(probs, allowed_langs)
+    if cand: return lang_info(cand.lang, cand.prob)
+  except: pass
+  scripts = script_composition(text)  # fraction per Unicode block
+  for s in INDIAN_SCRIPTS:
+    if scripts[s] > 0.10: return script_to_lang(s, scripts[s])
+  s*, p = argmax(scripts)
+  if p > 0.20: return script_to_lang(s*, p)
+  return EN_DEFAULT
+```
+
+#### Chunking and retrieval: algorithm and hyperparameters
+- Tokenization: simple character window with sentence-aware boundary (period ‘.’ backoff)
+- Chunk size: 500 characters; overlap: 50 characters
+- Boundary rule: if a period exists between start and start+chunk_size and is past the half-window, cut at last period+1; else hard cut
+- Embeddings: paraphrase-multilingual-MiniLM-L12-v2 (384-d); cosine similarity via FAISS IndexFlatIP with L2-normalized vectors
+- Top-k: default 5 for QA context; 15 for context assembly before truncation
+- Filters: optional document_id/language/page_number at query time
+
 ### Flow chart
 ```mermaid
 flowchart TD
@@ -70,7 +106,77 @@ Core services:
 
 Frontend: React + Tailwind + Framer Motion with modern UX; authenticated chat and analytics UI. Implementation details and configuration follow the project documentation [10].
 
-## 5. Results and Discussion
+## 5. Experiments
+
+### 5.1 Datasets
+- Test-Docs (in-repo): 7 documents total — PDF (3: English, Hindi, Kannada), DOCX (3: English, Hindi, Kannada), JPG (1: English scan) under `test-docs/`.
+- Additional ad-hoc uploads (in `uploads/`): used only for qualitative checks; not part of reported metrics.
+- Pages: evaluate per-page for OCR and retrieval; per-document for summarization and QA.
+- Languages: English, Hindi (Devanagari), Kannada. Future runs include the remaining Indic set when available.
+- Splits: evaluation-only; no model training. For stochastic components we run 3 seeds.
+
+### 5.2 Baselines and configurations
+- Language detection:
+  - Baseline: langdetect top-1 over allowed set; default thresholds.
+  - Ours (hybrid): langdetect + Unicode script backoff (script≥0.10 mixed, ≥0.20 dominant).
+- OCR:
+  - Tesseract-only: `lang=eng+hin+kan`, `--psm 6`, default engine.
+  - EasyOCR-only: readers initialized for [en], [en,hi], [en,kn]; CPU.
+  - Hybrid (ours): EasyOCR primary; Tesseract fallback on failure/low confidence.
+- Retrieval:
+  - FAISS (IndexFlatIP, cosine via L2 norm) vs MongoDB-only (text index cosine) ablation.
+- Summarization:
+  - Extractive baseline: key-sentences (_extract_key_sentences).
+  - Abstractive (EN): BART/DistilBART.
+- QA:
+  - Model: deepset/roberta-base-squad2 (fallback DistilBERT).
+  - Baseline: QA without RAG (on concatenated text truncated) vs RAG (ours).
+
+### 5.3 Metrics (definitions)
+- Language detection: Accuracy (per-span and macro-avg), confusion matrix (top languages).
+- OCR: Character Error Rate (CER) = (S+D+I)/N; Word Error Rate (WER) analogous at word level.
+- Retrieval: Recall@k (k∈{1,5,10}), Mean Reciprocal Rank (MRR), NDCG@k.
+- QA: Exact Match (EM) and token-level F1 against ground truth answers; also model confidence.
+- Summarization: ROUGE-1/2/L (if refs present) and compression ratio; human preference for qualitative.
+- Latency: per-stage wall-clock: OCR, embedding, FAISS search, QA/summarization; report mean±std over docs.
+
+### 5.4 Experimental protocol
+- Hardware: CPU-only workstation (Windows 10/11), 16 GB RAM; batch size=1 document; no GPU. Specify CPU model when available.
+- Seeds: {0,1,2}; report mean ± std across seeds; langdetect seeded; OCR deterministic.
+- Procedure per doc: (1) OCR/parse → (2) chunk (500/50) → (3) embed (mSBERT) → (4) index/search (FAISS) → (5) QA/summarization.
+- Ground truth: QA pairs from `sample_training_data.csv` (English) for EM/F1; OCR CER/WER vs typed references when prepared.
+- Reporting: include failure cases (e.g., low-contrast Devanagari matras) with cropped images in supplementary.
+
+### 5.5 Latency measurement details
+- Instrument timers around: image preprocessing, OCR (per engine), embedding, FAISS search, QA/summarization.
+- Report: mean±std and 90th percentile per stage; end-to-end. Provide wall-clock traces per doc.
+
+### 5.6 Backend test suite results (internal)
+Source: `test-backend/TESTING_SUMMARY.md` and `test-backend/results/complete_results.json`. Dataset: `sample_training_data.csv` (English-only), n=30; CPU-only; evaluation seed not applicable (no training).
+
+- Framework status: ALL TESTS PASSING (Framework Core, Classification, Sentiment, QA, Robustness, Multilingual: 100%).
+
+|| Component | Key metrics |
+||-----------|-------------|
+|| Multilingual summary generation | success_rate: 1.00; avg_proc_time: 0.016 s/sample; avg_compression_ratio: 1.618; bilingual_rate: 0.00 (no Indic in set); avg_conf: 0.00 |
+|| Multilingual QA | success_rate: 1.00; avg_similarity: 0.278; avg_conf: 0.597; avg_proc_time: 0.080 s/sample |
+|| Indian language detection | success_rate: 1.00; accuracy: N/A (no labeled refs); avg_conf: 0.999996; avg_proc_time: 0.00446 s/sample; language_distribution: en:30 |
+
+Notes: These are internal smoke-test metrics on synthetic/simple English samples to validate pipeline health; they complement but do not replace the document-level evaluations reported above.
+
+## 6. Reproducibility & Artifact Release
+- Code: GitHub (public) — https://github.com/yourusername/polydoc-ai
+- How to reproduce (backend):
+  1) python -m venv venv; activate; pip install -r requirements.txt
+  2) Install Tesseract binary and ensure it’s on PATH; EasyOCR auto-downloads models.
+  3) Start API: `uvicorn src.api.main_mongodb:app --reload --host 0.0.0.0 --port 8000`
+  4) Optional MongoDB: configure URI in `src/core/mongodb_store.py`.
+- Datasets: use `test-docs/` for evaluation; optionally extend with your own PDFs/images.
+- Tests: `python test-backend/run_tests.py --test multilingual` to validate summarization/QA/lang detection; `python test-backend/run_tests.py --test basic` for end-to-end mock.
+- Exact models: paraphrase-multilingual-MiniLM-L12-v2 (embeddings), facebook/bart-large-cnn (EN summarization; fallback DistilBART), deepset/roberta-base-squad2 (QA); versions pinned by pip in `requirements.txt`.
+- Environment: Python 3.8+; Windows/Linux supported; CPU mode by default.
+
+## 7. Results and Discussion
 ### Experimental setup
 - CPU-only, open-source models; typical document size 1–10 MB; formats: PDF/DOCX/PPTX/PNG/JPG/TIFF/TXT/HTML/CSV.
 - Languages: hi, kn, mr, te, ta, bn, gu, pa, ml, or, as, en.
@@ -124,10 +230,10 @@ Frontend: React + Tailwind + Framer Motion with modern UX; authenticated chat an
 ### Discussion
 Findings echo Mathew et al. [1]: hierarchical/script-aware handling improves performance over flat multilingual pipelines. Unlike RNN‑CTC recognition, PolyDoc leverages general OCR plus script-aware postprocessing and transformer-based retrieval/understanding, trading some OCR optimality for deployability and breadth. The hybrid detector substantially mitigates Indic misclassification in short or noisy segments. Retrieval‑augmented QA works well across languages as embeddings are multilingual [6].
 
-## 6. Conclusion
+## 8. Conclusion
 PolyDoc AI delivers a practical, free, self‑hosted system for multilingual document understanding with specialized Indic support. The hybrid language detector outperforms baseline classifiers on Indic scripts, OCR succeeds reliably with a hybrid EasyOCR/Tesseract path, and multilingual embeddings enable robust semantic retrieval and QA. Among compared variants, the best overall configuration combines: image preprocessing + EasyOCR primary with Tesseract fallback; hybrid language detection; FAISS retrieval; and bilingual summary generation. This yields strong accuracy with predictable CPU latencies across diverse formats.
 
-## 7. Future Work
+## 9. Future Work
 - Hybridization and new approaches:
   - Early, word-level script identification (learned, transformer-based) to route OCR per script (closer to RNN‑CTC hierarchy).
   - Layout-aware models (LayoutLMv3/DocFormer) for table/figure grounding and better chunking.
@@ -139,7 +245,7 @@ PolyDoc AI delivers a practical, free, self‑hosted system for multilingual doc
   - Cross‑lingual answer synthesis: answer in user’s script with English rationale for verification.
   - Document-level evaluation suite integrated with test‑backend for reproducible benchmarks.
 
-## 8. System Architecture (Supplementary Diagram)
+## 10. System Architecture (Supplementary Diagram)
 ```mermaid
 graph TB
   subgraph Frontend
@@ -162,7 +268,7 @@ graph TB
   FAPI --> UI
 ```
 
-## References
+## 11. References
 [1] M. Mathew, A. K. Singh, and C. V. Jawahar, “Multilingual OCR for Indic Scripts,” Proc. DAS, 2016, pp. 186–191, doi:10.1109/DAS.2016.68.  
 [2] M. S. Manjula and R. S. Hegadi, “A Review on Multilingual Document Analysis in Indian Context,” Proc. iCATccT, 2016, pp. 519–522.  
 [3] Johnson et al., “FAISS: A library for efficient similarity search,” Facebook AI Research, 2017.  
