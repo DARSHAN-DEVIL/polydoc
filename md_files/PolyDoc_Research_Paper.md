@@ -317,6 +317,40 @@ pie title Stage time share (illustrative)
   "QA/Summary" : 5
 ```
 
+### 5.7 Graphs and visualizations (generated from test-backend)
+To regenerate figures, run: `python scripts/generate_figures.py` (outputs to `md_files/figures/`).
+
+- Fig. 1: Average processing time per task (summary vs QA)
+  
+  ![Fig. 1: Avg processing time per task](../md_files/figures/avg_processing_time.png)
+
+- Fig. 2: QA metrics (average similarity and confidence)
+  
+  ![Fig. 2: QA metrics](../md_files/figures/qa_metrics.png)
+
+- Fig. 3: Summary compression ratio distribution (histogram)
+  
+  ![Fig. 3: Compression ratios](../md_files/figures/compression_hist.png)
+
+- Fig. 4: Language distribution in test set (pie)
+  
+  ![Fig. 4: Language distribution](../md_files/figures/language_pie.png)
+
+- Fig. 5: Pipeline Gantt (OCR → Embedding → Search → QA)
+  
+  ![Fig. 5: Pipeline Gantt](../md_files/figures/pipeline_gantt.png)
+
+```mermaid
+gantt
+  dateFormat  X
+  title       Fig. 5a: Pipeline Gantt (illustrative)
+  section Stages
+  OCR           :a1, 0, 180
+  Embedding     :a2, 180, 40
+  FAISS Search  :a3, 220, 5
+  QA/Summary    :a4, 225, 20
+```
+
 ### Discussion
 Findings echo Mathew et al. [1]: hierarchical/script-aware handling improves performance over flat multilingual pipelines. Unlike RNN‑CTC recognition, PolyDoc leverages general OCR plus script-aware postprocessing and transformer-based retrieval/understanding, trading some OCR optimality for deployability and breadth. The hybrid detector substantially mitigates Indic misclassification in short or noisy segments. Retrieval‑augmented QA works well across languages as embeddings are multilingual [6].
 
@@ -324,7 +358,7 @@ Findings echo Mathew et al. [1]: hierarchical/script-aware handling improves per
 PolyDoc AI delivers a practical, free, self‑hosted system for multilingual document understanding with specialized Indic support. The hybrid language detector outperforms baseline classifiers on Indic scripts, OCR succeeds reliably with a hybrid EasyOCR/Tesseract path, and multilingual embeddings enable robust semantic retrieval and QA. Among compared variants, the best overall configuration combines: image preprocessing + EasyOCR primary with Tesseract fallback; hybrid language detection; FAISS retrieval; and bilingual summary generation. This yields strong accuracy with predictable CPU latencies across diverse formats.
 
 ## 9. Future Work
-We plan to (i) integrate learned, fine‑grained script identification and layout‑aware models to improve OCR and chunking on tables/figures, and (ii) explore GPU‑accelerated variants (e.g., FAISS IVF/HNSW, TrOCR, IndicBERT/XLM‑R heads) while keeping CPU‑friendly fallbacks. In parallel, we will expand multilingual evaluation and add an active‑learning loop from chat corrections, aiming to deliver verifiable, bilingual answers with tighter latency bounds and a fully reproducible benchmarking suite.
+We plan to (i) integrate learned, fine‑grained script identification (word/line level) and layout‑aware models (LayoutLMv3/DocFormer) to improve OCR on tables, figures, and complex templates, and (ii) expand chunking to discourse‑aware units with adaptive overlap tuned per language. On the modeling side, we will explore GPU‑accelerated variants that remain optional for CPU‑only deployments: FAISS IVF/HNSW for large collections, TrOCR or Donut‑style OCR fine‑tuned on Indic scripts, and IndicBERT/XLM‑R heads for QA and summarization with multilingual calibration. We also intend to add confidence‑aware re‑OCR and retrieval fallbacks triggered by uncertainty signals, plus translation‑assisted bilingual responses with side‑by‑side rationales. Finally, we will grow the evaluation suite with public and consented Indic datasets, publish per‑stage latency distributions on multiple hardware profiles, and release a one‑click figure generator so readers can reproduce tables and plots from raw logs.
 
 ## 10. System Architecture (Supplementary Diagram)
 ```mermaid
