@@ -14,7 +14,8 @@ import {
   Volume2,
   VolumeX,
   Pause,
-  Play
+  Play,
+  BarChart2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -314,6 +315,7 @@ export default function Dashboard() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [loadingRecent, setLoadingRecent] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const messagesEndRef = useRef(null);
   const userMenuRef = useRef(null);
   
@@ -1288,6 +1290,10 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
                     <Share2 className="h-4 w-4 mr-2" />
                     Share
                   </Button>
+                  <Button size="sm" className="flex-1" onClick={() => setShowStatsModal(true)}>
+                    <BarChart2 className="h-4 w-4 mr-2" />
+                    Show Statistics
+                  </Button>
                 </div>
               </motion.div>
             )}
@@ -1356,6 +1362,61 @@ ${JSON.stringify(documentInfo.statistics, null, 2)}`;
           </motion.div>
         </motion.div>
       </main>
+
+      {/* Statistics Modal */}
+      {showStatsModal && currentDocument && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowStatsModal(false)}>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Document Summary & Statistics</h3>
+              </div>
+              <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800" onClick={() => setShowStatsModal(false)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div>
+                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300">Document Information</h4>
+                <div className="mt-2 text-sm">
+                  <p><span className="font-medium">Name:</span> {currentDocument.name}</p>
+                  <p><span className="font-medium">Size:</span> {(currentDocument.size/1024/1024).toFixed(2)} MB</p>
+                  <p><span className="font-medium">Uploaded:</span> {new Date().toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300">Summary</h4>
+                <p className="mt-2 text-sm whitespace-pre-wrap">
+                  {currentDocument.summary || 'No summary available'}
+                </p>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300">Document Statistics</h4>
+                <ul className="mt-2 text-sm list-disc pl-5 space-y-1">
+                  <li>Pages: {currentDocument.statistics?.total_pages ?? '—'}</li>
+                  <li>Language: {Object.keys(currentDocument.statistics?.languages || {unknown:0})[0] || 'Unknown'}</li>
+                  <li>Total Elements: {currentDocument.statistics?.total_elements ?? '—'}</li>
+                  <li>Content: Paragraphs: {currentDocument.statistics?.element_types?.paragraph ?? 0}</li>
+                  <li>Type: Text Document</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-gray-600 dark:text-gray-300">Raw Statistics</h4>
+                <pre className="mt-2 text-xs bg-gray-50 dark:bg-gray-800 rounded-lg p-3 overflow-x-auto border border-gray-200 dark:border-gray-700">
+{JSON.stringify(currentDocument.statistics || {}, null, 2)}
+                </pre>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <Button variant="outline" onClick={() => setShowStatsModal(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
